@@ -140,7 +140,9 @@ func (this *UserManager) UpdateUserToDB() {
 		user.IsNew = false
 	}
 
-	this.updateUserList = make([]*User, 0, defaultUpdateUserSize)
+	if len(this.updateUserList) != 0 {
+		this.updateUserList = make([]*User, 0, defaultUpdateUserSize)
+	}
 }
 
 func (this *UserManager) AddUser(userName string, passwordSum string, macAddr string) error {
