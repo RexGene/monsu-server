@@ -1,14 +1,46 @@
 package main
 
 import (
-	"github.com/RexGene/sqlproxy"
+	"./cache/recordmanager"
+	"./cache/resultmanager"
+	"./cache/usermanager"
+	"./interface/handler"
+	"log"
+	"time"
 )
 
-func main() {
-	db := sqlproxy.NewSqlProxy("root", "123456", "111.59.24.181", "3306", "game")
-	err := db.Connect()
-	if err != nil {
-		panic(err)
-	}
+var synChan chan int
 
+func initData() {
+	recordmanager.GetInstance().LoadData()
+	resultmanager.GetInstance().LoadData()
+	usermanager.GetInstance().LoadUser()
+
+	synChan = make(chan int, 1)
+}
+
+func handleCmd() {
+	for {
+		select {
+		case <-time.After(time.Minute * 10):
+			updateDB()
+		}
+	}
+}
+
+func updateDB() {
+	synChan <- 1
+	defer func() { <-synChan }()
+
+	recordmanager.GetInstance().UpdateToDB()
+	resultmanager.GetInstance().UpdateToDB()
+	usermanager.GetInstance().UpdateUserToDB()
+}
+
+func main() {
+	initData()
+	log.Println("init data finish")
+
+	go handleCmd()
+	handler.Init(synChan)
 }

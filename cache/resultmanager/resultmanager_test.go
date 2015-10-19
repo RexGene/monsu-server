@@ -1,4 +1,4 @@
-package recordmanager
+package resultmanager
 
 import (
 	"testing"

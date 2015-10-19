@@ -174,7 +174,7 @@ func (this *UserManager) GetTotalUser() int {
 }
 
 func (this *UserManager) LoadUser() error {
-	proxy := sqlproxy.NewSqlProxy("root", "1881982050~!@", "123.59.24.181", "3306", "game")
+	proxy := sqlproxy.NewSqlProxy("root", "123456", "111.59.24.181", "3306", "game")
 	err := proxy.Connect()
 	if err != nil {
 		return err
