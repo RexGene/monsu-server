@@ -13,6 +13,7 @@ type User struct {
 	PasswordSum    string
 	Uuid           uint64
 	MacAddr        string
+	Cert           string
 	LastUpdateTime time.Time
 	GoldCount      uint8
 	DiamondCount   uint8
@@ -90,6 +91,12 @@ func (this *UserManager) UpdateUserToDB() {
 		field = &sqlproxy.FieldData{
 			Name:  "password",
 			Value: user.PasswordSum,
+		}
+		fields = append(fields, field)
+
+		field = &sqlproxy.FieldData{
+			Name:  "cert",
+			Value: user.Cert,
 		}
 		fields = append(fields, field)
 
@@ -188,6 +195,7 @@ func (this *UserManager) LoadUser() error {
 	fieldNames = append(fieldNames, "last_update_time")
 	fieldNames = append(fieldNames, "gold_count")
 	fieldNames = append(fieldNames, "diamond_count")
+	fieldNames = append(fieldNames, "cert")
 
 	queryCmd := &sqlproxy.QueryCmd{
 		TableName:  "users",
@@ -206,6 +214,7 @@ func (this *UserManager) LoadUser() error {
 		newUser.UserName = dataMap["user_name"]
 		newUser.PasswordSum = dataMap["password"]
 		newUser.MacAddr = dataMap["mac_addr"]
+		newUser.Cert = dataMap["cert"]
 
 		//last update time
 		var year, month, day, h, m, s int

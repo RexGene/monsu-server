@@ -19,6 +19,8 @@ type Result struct {
 	EnemyName   string
 	Scores      uint
 	EnemyScores uint
+	RewardType  uint8
+	Amount      uint
 }
 
 type ResultManager struct {
@@ -134,6 +136,8 @@ func (this *ResultManager) LoadData() error {
 	fieldNames = append(fieldNames, "enemy_uuid")
 	fieldNames = append(fieldNames, "scores")
 	fieldNames = append(fieldNames, "enemy_scores")
+	fieldNames = append(fieldNames, "reward_type")
+	fieldNames = append(fieldNames, "amount")
 
 	queryCmd := &sqlproxy.QueryCmd{
 		TableName:  "result",
@@ -175,6 +179,18 @@ func (this *ResultManager) LoadData() error {
 			return err
 		}
 		result.EnemyScores = uint(value)
+
+		value, err = strconv.Atoi(dataMap["reward_type"])
+		if err != nil {
+			return err
+		}
+		result.RewardType = uint8(value)
+
+		value, err = strconv.Atoi(dataMap["amount"])
+		if err != nil {
+			return err
+		}
+		result.Amount = uint(value)
 
 		dataMap := this.dataMap
 		list := dataMap[result.UserName]

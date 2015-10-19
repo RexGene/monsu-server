@@ -40,28 +40,32 @@ func handleRegist(w http.ResponseWriter, r *http.Request) {
 	result := 0
 	responseStr := ""
 	certHexStr := ""
+	msg := ""
 	var err error
 
 	defer func() {
-		responseStr = fmt.Sprintf("{result:'%d', cert:'%s'}", result, certHexStr)
+		responseStr = fmt.Sprintf("{result:'%d', cert:'%s' msg:'%s'}", result, certHexStr, msg)
 		w.Write([]byte(responseStr))
 	}()
 
 	userName := r.FormValue("userName")
 	if !isStringValid(userName) {
-		log.Println("userName invalid")
+		msg = "userName invalid"
+		log.Println(msg)
 		return
 	}
 
 	macAddr := r.FormValue("macAddr")
 	if !isStringValid(macAddr) {
-		log.Println("macAddr invalid")
+		msg = "macAddr invalid"
+		log.Println(msg)
 		return
 	}
 
 	timeStamp := r.FormValue("timeStamp")
 	if !isStringValid(timeStamp) {
-		log.Println("timeStamp invalid")
+		msg = "timeStamp invalid"
+		log.Println(msg)
 		return
 	}
 
@@ -76,14 +80,73 @@ func handleRegist(w http.ResponseWriter, r *http.Request) {
 	err = userManager.AddUser(userName, certHexStr, macAddr)
 	if err == nil {
 		result = 1
+	} else {
+		msg = err.Error()
+		certHexStr = ""
 	}
-
 }
 
 func handleLogin(w http.ResponseWriter, r *http.Request) {
 	synChan <- 1
 	defer func() { <-synChan }()
 
+	result := 0
+	token := ""
+	msg := ""
+	var surplusAmount [2]int
+
+	defer func() {
+		responseStr := fmt.Sprintf("{result:'%d', surplusAmount:[%d, %d], msg:'%s'}",
+			result, surplusAmount[0], surplusAmount[1], msg)
+		w.Write([]byte(responseStr))
+	}()
+
+	userName := r.FormValue("userName")
+	if !isStringValid(userName) {
+		msg = "userName invalid"
+		log.Println(msg)
+		return
+	}
+
+	timeStamp := r.FormValue("timeStamp")
+	if !isStringValid(timeStamp) {
+		msg = "timeStamp invalid"
+		log.Println(msg)
+		return
+	}
+
+	token = r.FormValue("token")
+	if !isStringValid(token) {
+		msg = "token invalid"
+		log.Println(msg)
+		return
+	}
+
+	userManager := usermanager.GetInstance()
+	user, err := userManager.GetUser(userName)
+	if err != nil {
+		msg = err.Error()
+		log.Println(msg)
+		return
+	}
+
+	sumStr := userName + timeStamp + user.Cert
+	sumValue := md5.Sum([]byte(sumStr))
+	sumHexStr := ""
+
+	for _, b := range sumValue {
+		sumHexStr += strconv.FormatInt(int64(b), 16)
+	}
+
+	if sumHexStr != token {
+		msg = "token not same"
+		log.Println(msg)
+		return
+	}
+
+	result = 1
+	surplusAmount[0] = int(user.GoldCount)
+	surplusAmount[1] = int(user.DiamondCount)
 }
 
 func handleGetReward(w http.ResponseWriter, r *http.Request) {
