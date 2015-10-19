@@ -30,7 +30,7 @@ func TestAddResult(t *testing.T) {
 		UserName:    "RexGene",
 		EnemyName:   "Enemy",
 		Scores:      99999,
-		EnemyScores: 1111,
+		EnemyScores: 1231,
 	}
 
 	resultManager.AddResult(result)

@@ -41,7 +41,7 @@ func TestAddUser(t *testing.T) {
 		return
 	}
 
-	err = userManager.AddUser("testUser2", "111111", "00000")
+	err = userManager.AddUser("testUser2", "123123", "00000")
 	if err != nil {
 		t.Log(err)
 		t.Fail()

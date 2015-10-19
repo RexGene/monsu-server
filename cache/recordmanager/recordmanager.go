@@ -173,7 +173,7 @@ func (this *RecordManager) UpdateToDB() error {
 }
 
 func (this *RecordManager) LoadData() error {
-	proxy := sqlproxy.NewSqlProxy("root", "123456", "111.59.24.181", "3306", "game")
+	proxy := sqlproxy.NewSqlProxy("root", "Uking1881982050~!@", "123.59.24.181", "3306", "game")
 	err := proxy.Connect()
 	if err != nil {
 		return err
