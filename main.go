@@ -12,9 +12,20 @@ import (
 var synChan chan int
 
 func initData() {
-	recordmanager.GetInstance().LoadData()
-	resultmanager.GetInstance().LoadData()
-	usermanager.GetInstance().LoadUser()
+	err := recordmanager.GetInstance().LoadData()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = resultmanager.GetInstance().LoadData()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = usermanager.GetInstance().LoadUser()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	synChan = make(chan int, 1)
 }
@@ -22,7 +33,7 @@ func initData() {
 func handleCmd() {
 	for {
 		select {
-		case <-time.After(time.Minute * 10):
+		case <-time.After(time.Minute * 1):
 			updateDB()
 		}
 	}

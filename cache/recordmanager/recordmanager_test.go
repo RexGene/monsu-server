@@ -34,6 +34,7 @@ func TestAddRecord(t *testing.T) {
 		Scores:      77777,
 		Records:     "{}",
 		Uuid:        27,
+		Type:        1,
 	}
 	recordManager.AddRecord(record)
 	recordManager.UpdateToDB()
@@ -50,9 +51,9 @@ func TestGetRecord(t *testing.T) {
 		return
 	}
 
-	record := recordManager.GetRecord(77777, 0)
-	if record == nil {
-		t.Log("not found record")
+	_, err = recordManager.GetRecord(77777, 0, 1)
+	if err != nil {
+		t.Log(err)
 		t.Fail()
 		return
 	}

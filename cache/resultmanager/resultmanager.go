@@ -10,6 +10,11 @@ const (
 	defaultResultSize    = 512
 )
 
+const (
+	goldType    = 1
+	diamondType = 2
+)
+
 var instance *ResultManager
 
 type Result struct {
@@ -21,18 +26,21 @@ type Result struct {
 	EnemyScores uint
 	RewardType  uint8
 	Amount      uint
+	Type        uint
 }
 
 type ResultManager struct {
-	cmdEventList []*Result
-	sqlProxy     *sqlproxy.SqlProxy
-	dataMap      map[string][]*Result
+	cmdEventList   []*Result
+	sqlProxy       *sqlproxy.SqlProxy
+	dataMap        map[string][]*Result
+	diamondDataMap map[string][]*Result
 }
 
 func newInstance() *ResultManager {
 	return &ResultManager{
-		cmdEventList: make([]*Result, 0, defaultEventListSize),
-		dataMap:      make(map[string][]*Result),
+		cmdEventList:   make([]*Result, 0, defaultEventListSize),
+		dataMap:        make(map[string][]*Result),
+		diamondDataMap: make(map[string][]*Result),
 	}
 }
 
@@ -46,8 +54,14 @@ func GetInstance() *ResultManager {
 
 func (this *ResultManager) AddResult(cmd *Result) error {
 	this.cmdEventList = append(this.cmdEventList, cmd)
+	var dataMap map[string][]*Result
 
-	dataMap := this.dataMap
+	if cmd.Type == goldType {
+		dataMap = this.dataMap
+	} else if cmd.Type == diamondType {
+		dataMap = this.diamondDataMap
+	}
+
 	list := dataMap[cmd.UserName]
 	if list == nil {
 		list = make([]*Result, 0, defaultResultSize)
@@ -105,6 +119,12 @@ func (this *ResultManager) UpdateToDB() error {
 		}
 		fields = append(fields, field)
 
+		field = &sqlproxy.FieldData{
+			Name:  "type",
+			Value: strconv.FormatUint(uint64(recordCmd.Type), 10),
+		}
+		fields = append(fields, field)
+
 		saveCmd = &sqlproxy.SaveCmd{
 			TableName: "result",
 			IsNew:     true,
@@ -123,7 +143,7 @@ func (this *ResultManager) UpdateToDB() error {
 }
 
 func (this *ResultManager) LoadData() error {
-	proxy := sqlproxy.NewSqlProxy("root", "Uking1881982050~!@", "123.59.24.181", "3306", "game")
+	proxy := sqlproxy.NewSqlProxy("root", "123456", "111.59.24.181", "3306", "game")
 	err := proxy.Connect()
 	if err != nil {
 		return err
@@ -138,6 +158,7 @@ func (this *ResultManager) LoadData() error {
 	fieldNames = append(fieldNames, "enemy_scores")
 	fieldNames = append(fieldNames, "reward_type")
 	fieldNames = append(fieldNames, "amount")
+	fieldNames = append(fieldNames, "type")
 
 	queryCmd := &sqlproxy.QueryCmd{
 		TableName:  "result",
@@ -191,6 +212,13 @@ func (this *ResultManager) LoadData() error {
 			return err
 		}
 		result.Amount = uint(value)
+
+		value, err = strconv.Atoi(dataMap["type"])
+		if err != nil {
+			return err
+		}
+
+		result.Type = uint(value)
 
 		dataMap := this.dataMap
 		list := dataMap[result.UserName]

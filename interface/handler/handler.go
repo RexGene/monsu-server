@@ -11,6 +11,7 @@ import (
 )
 
 var synChan chan int
+var tokenMap map[string]string
 
 func isStringValid(str string) bool {
 	str = strings.TrimSpace(str)
@@ -44,7 +45,7 @@ func handleRegist(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	defer func() {
-		responseStr = fmt.Sprintf("{result:'%d', cert:'%s' msg:'%s'}", result, certHexStr, msg)
+		responseStr = fmt.Sprintf("{\"result\":%d, \"cert\":\"%s\", \"msg\":\"%s\"}", result, certHexStr, msg)
 		w.Write([]byte(responseStr))
 	}()
 
@@ -96,8 +97,8 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	var surplusAmount [2]int
 
 	defer func() {
-		responseStr := fmt.Sprintf("{result:'%d', surplusAmount:[%d, %d], msg:'%s'}",
-			result, surplusAmount[0], surplusAmount[1], msg)
+		responseStr := fmt.Sprintf("{\"result\":%d, \"surplusAmount\":[%d, %d], \"token\":\"%s\", \"msg\":\"%s\"}",
+			result, surplusAmount[0], surplusAmount[1], token, msg)
 		w.Write([]byte(responseStr))
 	}()
 
@@ -144,21 +145,16 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if user.Token != "" {
+		delete(tokenMap, user.Token)
+	}
+
+	user.Token = sumHexStr
+	tokenMap[sumHexStr] = userName
+
 	result = 1
 	surplusAmount[0] = int(user.GoldCount)
 	surplusAmount[1] = int(user.DiamondCount)
-}
-
-func handleGetReward(w http.ResponseWriter, r *http.Request) {
-	synChan <- 1
-	defer func() { <-synChan }()
-
-}
-
-func handleGetResult(w http.ResponseWriter, r *http.Request) {
-	synChan <- 1
-	defer func() { <-synChan }()
-
 }
 
 func handleStartBattle(w http.ResponseWriter, r *http.Request) {
@@ -184,8 +180,6 @@ func Init(synChannel chan int) {
 
 	http.HandleFunc("/regist", handleRegist)
 	http.HandleFunc("/login", handleLogin)
-	http.HandleFunc("/getReward", handleRegist)
-	http.HandleFunc("/getResult", handleGetResult)
 	http.HandleFunc("/startBattle", handleStartBattle)
 	http.HandleFunc("/uploadRecord", handleUploadRecord)
 	http.HandleFunc("/findEnemy", handleFindEnemy)

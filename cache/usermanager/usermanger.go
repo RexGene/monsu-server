@@ -2,22 +2,28 @@ package usermanager
 
 import (
 	"errors"
-	"fmt"
 	"github.com/RexGene/sqlproxy"
 	"strconv"
 	"time"
 )
 
 type User struct {
-	UserName       string
-	PasswordSum    string
-	Uuid           uint64
-	MacAddr        string
-	Cert           string
-	LastUpdateTime time.Time
-	GoldCount      uint8
-	DiamondCount   uint8
-	IsNew          bool
+	UserName          string
+	PasswordSum       string
+	Uuid              uint64
+	MacAddr           string
+	Cert              string
+	LastUpdateDay     uint
+	GoldCount         uint8
+	DiamondCount      uint8
+	GoldRank          uint
+	GoldWinAmount     uint
+	GoldLoseAmount    uint
+	DiamondRank       uint
+	DiamondWinAmount  uint
+	DiamondLoseAmount uint
+	IsNew             bool
+	Token             string
 }
 
 const (
@@ -95,12 +101,6 @@ func (this *UserManager) UpdateUserToDB() {
 		fields = append(fields, field)
 
 		field = &sqlproxy.FieldData{
-			Name:  "cert",
-			Value: user.Cert,
-		}
-		fields = append(fields, field)
-
-		field = &sqlproxy.FieldData{
 			Name:  "uuid",
 			Value: strconv.FormatUint(user.Uuid, 10),
 		}
@@ -124,15 +124,9 @@ func (this *UserManager) UpdateUserToDB() {
 		}
 		fields = append(fields, field)
 
-		t := user.LastUpdateTime
-		year, month, day := t.Date()
-		h := t.Hour()
-		m := t.Minute()
-		s := t.Second()
-		timeStr := fmt.Sprintf("%.4d-%.2d-%.2d %.2d:%.2d:%.2d", year, month, day, h, m, s)
 		field = &sqlproxy.FieldData{
 			Name:  "last_update_time",
-			Value: timeStr,
+			Value: strconv.FormatUint(uint64(user.LastUpdateDay), 10),
 		}
 		fields = append(fields, field)
 
@@ -160,14 +154,14 @@ func (this *UserManager) AddUser(userName string, passwordSum string, macAddr st
 
 	this.maxUserId++
 	newUser := &User{
-		UserName:       userName,
-		PasswordSum:    passwordSum,
-		MacAddr:        macAddr,
-		GoldCount:      defaultGoldCount,
-		DiamondCount:   defaultDiamondCount,
-		LastUpdateTime: time.Now(),
-		Uuid:           this.maxUserId,
-		IsNew:          true,
+		UserName:      userName,
+		PasswordSum:   passwordSum,
+		MacAddr:       macAddr,
+		GoldCount:     defaultGoldCount,
+		DiamondCount:  defaultDiamondCount,
+		LastUpdateDay: uint((time.Now().Unix() - (3600 * 8)) / 86400),
+		Uuid:          this.maxUserId,
+		IsNew:         true,
 	}
 
 	userMap[userName] = newUser
@@ -181,7 +175,7 @@ func (this *UserManager) GetTotalUser() int {
 }
 
 func (this *UserManager) LoadUser() error {
-	proxy := sqlproxy.NewSqlProxy("root", "Uking1881982050~!@", "123.59.24.181", "3306", "game")
+	proxy := sqlproxy.NewSqlProxy("root", "123456", "111.59.24.181", "3306", "game")
 	err := proxy.Connect()
 	if err != nil {
 		return err
@@ -192,10 +186,16 @@ func (this *UserManager) LoadUser() error {
 	fieldNames = append(fieldNames, "password")
 	fieldNames = append(fieldNames, "uuid")
 	fieldNames = append(fieldNames, "mac_addr")
-	fieldNames = append(fieldNames, "last_update_time")
+	fieldNames = append(fieldNames, "last_update_day")
 	fieldNames = append(fieldNames, "gold_count")
 	fieldNames = append(fieldNames, "diamond_count")
-	fieldNames = append(fieldNames, "cert")
+
+	fieldNames = append(fieldNames, "gold_rank")
+	fieldNames = append(fieldNames, "gold_win_amount")
+	fieldNames = append(fieldNames, "gold_lose_amount")
+	fieldNames = append(fieldNames, "diamond_rank")
+	fieldNames = append(fieldNames, "diamond_win_amount")
+	fieldNames = append(fieldNames, "diamond_lose_amount")
 
 	queryCmd := &sqlproxy.QueryCmd{
 		TableName:  "users",
@@ -214,15 +214,18 @@ func (this *UserManager) LoadUser() error {
 		newUser.UserName = dataMap["user_name"]
 		newUser.PasswordSum = dataMap["password"]
 		newUser.MacAddr = dataMap["mac_addr"]
-		newUser.Cert = dataMap["cert"]
 
 		//last update time
-		var year, month, day, h, m, s int
-		fmt.Sscanf(dataMap["last_update_time"], "%d-%d-%d %d:%d:%d", &year, &month, &day, &h, &m, &s)
-		newUser.LastUpdateTime = time.Date(year, time.Month(month), day, h, m, s, 0, time.UTC)
+		temp, err := strconv.ParseUint(dataMap["last_update_day"], 10, 32)
+		if err != nil {
+			this.userMap = make(map[string]*User)
+			return err
+		}
+
+		newUser.LastUpdateDay = uint(temp)
 
 		//gold count
-		temp, err := strconv.ParseUint(dataMap["gold_count"], 10, 8)
+		temp, err = strconv.ParseUint(dataMap["gold_count"], 10, 8)
 		if err != nil {
 			this.userMap = make(map[string]*User)
 			return err
@@ -238,6 +241,54 @@ func (this *UserManager) LoadUser() error {
 		}
 
 		newUser.DiamondCount = uint8(temp)
+
+		temp, err = strconv.ParseUint(dataMap["gold_rank"], 10, 32)
+		if err != nil {
+			this.userMap = make(map[string]*User)
+			return err
+		}
+
+		newUser.GoldRank = uint(temp)
+
+		temp, err = strconv.ParseUint(dataMap["gold_win_amount"], 10, 32)
+		if err != nil {
+			this.userMap = make(map[string]*User)
+			return err
+		}
+
+		newUser.GoldWinAmount = uint(temp)
+
+		temp, err = strconv.ParseUint(dataMap["gold_lose_amount"], 10, 32)
+		if err != nil {
+			this.userMap = make(map[string]*User)
+			return err
+		}
+
+		newUser.GoldLoseAmount = uint(temp)
+
+		temp, err = strconv.ParseUint(dataMap["diamond_rank"], 10, 32)
+		if err != nil {
+			this.userMap = make(map[string]*User)
+			return err
+		}
+
+		newUser.DiamondRank = uint(temp)
+
+		temp, err = strconv.ParseUint(dataMap["diamond_win_amount"], 10, 32)
+		if err != nil {
+			this.userMap = make(map[string]*User)
+			return err
+		}
+
+		newUser.DiamondWinAmount = uint(temp)
+
+		temp, err = strconv.ParseUint(dataMap["diamond_lose_amount"], 10, 32)
+		if err != nil {
+			this.userMap = make(map[string]*User)
+			return err
+		}
+
+		newUser.DiamondLoseAmount = uint(temp)
 
 		//uuid
 		uuid, err := strconv.ParseUint(dataMap["uuid"], 10, 64)

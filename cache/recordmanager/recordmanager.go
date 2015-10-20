@@ -1,6 +1,7 @@
 package recordmanager
 
 import (
+	"errors"
 	"github.com/RexGene/sqlproxy"
 	"math/rand"
 	"strconv"
@@ -8,8 +9,13 @@ import (
 
 const (
 	defaultEventListSize  = 128
-	defaultZoneSize       = 1024
+	defaultZoneSize       = 1000
 	defaultZoneRecordSize = 512
+)
+
+const (
+	goldType    = 1
+	diamondType = 2
 )
 
 var instance *RecordManager
@@ -24,18 +30,21 @@ type Record struct {
 	Scores      uint
 	Records     string
 	Uuid        uint64
+	Type        uint
 }
 
 type RecordManager struct {
-	cmdEventList []*Record
-	sqlProxy     *sqlproxy.SqlProxy
-	zoneRecords  map[uint][]*Record
+	cmdEventList      []*Record
+	sqlProxy          *sqlproxy.SqlProxy
+	zoneRecords       map[uint][]*Record
+	diamonZoneRecords map[uint][]*Record
 }
 
 func newInstance() *RecordManager {
 	return &RecordManager{
-		cmdEventList: make([]*Record, 0, defaultEventListSize),
-		zoneRecords:  make(map[uint][]*Record),
+		cmdEventList:      make([]*Record, 0, defaultEventListSize),
+		zoneRecords:       make(map[uint][]*Record),
+		diamonZoneRecords: make(map[uint][]*Record),
 	}
 }
 
@@ -56,7 +65,15 @@ func (this *RecordManager) AddRecord(cmd *Record) error {
 		index = zoneLen - 1
 	}
 
-	zoneRecords := this.zoneRecords
+	var zoneRecords map[uint][]*Record
+	if cmd.Type == goldType {
+		zoneRecords = this.zoneRecords
+	} else if cmd.Type == diamondType {
+		zoneRecords = this.diamonZoneRecords
+	} else {
+		return errors.New("unknow type:" + strconv.FormatUint(uint64(cmd.Type), 10))
+	}
+
 	if zoneRecords[index] == nil {
 		zoneRecords[index] = make([]*Record, 0, defaultZoneRecordSize)
 	}
@@ -65,7 +82,7 @@ func (this *RecordManager) AddRecord(cmd *Record) error {
 	return nil
 }
 
-func (this *RecordManager) GetRecord(scores uint, fix int) *Record {
+func (this *RecordManager) GetRecord(scores uint, fix int, t int) (*Record, error) {
 	zoneLen := uint(defaultZoneSize)
 	index := scores / zoneLen
 
@@ -86,11 +103,20 @@ func (this *RecordManager) GetRecord(scores uint, fix int) *Record {
 		index = zoneLen - 1
 	}
 
-	list := this.zoneRecords[index]
-	if list == nil {
-		return nil
+	var zoneRecords map[uint][]*Record
+	if t == goldType {
+		zoneRecords = this.zoneRecords
+	} else if t == diamondType {
+		zoneRecords = this.diamonZoneRecords
 	} else {
-		return list[rand.Int()%len(list)]
+		return nil, errors.New("unknow type:" + strconv.FormatInt(int64(t), 10))
+	}
+
+	list := zoneRecords[index]
+	if list == nil {
+		return nil, errors.New("not found user")
+	} else {
+		return list[rand.Int()%len(list)], nil
 	}
 }
 
@@ -150,6 +176,12 @@ func (this *RecordManager) UpdateToDB() error {
 		fields = append(fields, field)
 
 		field = &sqlproxy.FieldData{
+			Name:  "type",
+			Value: strconv.FormatUint(uint64(recordCmd.Type), 10),
+		}
+		fields = append(fields, field)
+
+		field = &sqlproxy.FieldData{
 			Name:  "Records",
 			Value: recordCmd.Records,
 		}
@@ -173,7 +205,7 @@ func (this *RecordManager) UpdateToDB() error {
 }
 
 func (this *RecordManager) LoadData() error {
-	proxy := sqlproxy.NewSqlProxy("root", "Uking1881982050~!@", "123.59.24.181", "3306", "game")
+	proxy := sqlproxy.NewSqlProxy("root", "123456", "111.59.24.181", "3306", "game")
 	err := proxy.Connect()
 	if err != nil {
 		return err
@@ -189,6 +221,7 @@ func (this *RecordManager) LoadData() error {
 	fieldNames = append(fieldNames, "uuid")
 	fieldNames = append(fieldNames, "scores")
 	fieldNames = append(fieldNames, "records")
+	fieldNames = append(fieldNames, "type")
 
 	queryCmd := &sqlproxy.QueryCmd{
 		TableName:  "record",
@@ -243,6 +276,12 @@ func (this *RecordManager) LoadData() error {
 		}
 		record.Uuid = value_new
 
+		value_new, err = strconv.ParseUint(dataMap["type"], 10, 32)
+		if err != nil {
+			return err
+		}
+		record.Type = uint(value_new)
+
 		value, err = strconv.Atoi(dataMap["scores"])
 		if err != nil {
 			return err
@@ -255,7 +294,15 @@ func (this *RecordManager) LoadData() error {
 			index = zoneLen - 1
 		}
 
-		zoneRecords := this.zoneRecords
+		var zoneRecords map[uint][]*Record
+		if record.Type == goldType {
+			zoneRecords = this.zoneRecords
+		} else if record.Type == diamondType {
+			zoneRecords = this.diamonZoneRecords
+		} else {
+			continue
+		}
+
 		if zoneRecords[index] == nil {
 			zoneRecords[index] = make([]*Record, 0, defaultZoneRecordSize)
 		}
