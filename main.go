@@ -2,7 +2,6 @@ package main
 
 import (
 	"./cache/recordmanager"
-	"./cache/resultmanager"
 	"./cache/usermanager"
 	"./interface/handler"
 	"log"
@@ -13,11 +12,6 @@ var synChan chan int
 
 func initData() {
 	err := recordmanager.GetInstance().LoadData()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = resultmanager.GetInstance().LoadData()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -44,7 +38,6 @@ func updateDB() {
 	defer func() { <-synChan }()
 
 	recordmanager.GetInstance().UpdateToDB()
-	resultmanager.GetInstance().UpdateToDB()
 	usermanager.GetInstance().UpdateUserToDB()
 }
 
