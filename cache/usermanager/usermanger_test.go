@@ -68,6 +68,8 @@ func TestUpdateUser(t *testing.T) {
 		return
 	}
 
+	userManager.ChangeName(user.Uuid, "IamAssHole")
+
 	user.PasswordSum = "newPsw"
 	userManager.MarkUserChange(user.UserName)
 	userManager.UpdateUserToDB()

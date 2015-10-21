@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 )
 
@@ -33,10 +32,10 @@ func isStringValid(str string) bool {
 }
 
 func handleRegist(w http.ResponseWriter, r *http.Request) {
+	log.Println(r.URL)
+
 	synChan <- 1
 	defer func() { <-synChan }()
-
-	log.Println(r.URL)
 
 	result := 0
 	responseStr := ""
@@ -74,7 +73,7 @@ func handleRegist(w http.ResponseWriter, r *http.Request) {
 	cert := md5.Sum([]byte(certStr))
 
 	for _, b := range cert {
-		certHexStr += strconv.FormatInt(int64(b), 16)
+		certHexStr += fmt.Sprintf("%.2x", b)
 	}
 
 	userManager := usermanager.GetInstance()
@@ -88,6 +87,8 @@ func handleRegist(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleLogin(w http.ResponseWriter, r *http.Request) {
+	log.Println(r.URL)
+
 	synChan <- 1
 	defer func() { <-synChan }()
 
@@ -131,16 +132,21 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sumStr := userName + timeStamp + user.Cert
+	sumStr := userName + timeStamp + user.PasswordSum
+	log.Println(sumStr)
+
 	sumValue := md5.Sum([]byte(sumStr))
 	sumHexStr := ""
 
 	for _, b := range sumValue {
-		sumHexStr += strconv.FormatInt(int64(b), 16)
+		sumHexStr += fmt.Sprintf("%.2x", b)
 	}
 
+	fmt.Printf("sumHexStr:%v", []byte(sumHexStr))
+	fmt.Printf("token:%v", []byte(token))
 	if sumHexStr != token {
 		msg = "token not same"
+		log.Println("sumHexStr:" + sumHexStr)
 		log.Println(msg)
 		return
 	}
@@ -155,6 +161,10 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	result = 1
 	surplusAmount[0] = int(user.GoldCount)
 	surplusAmount[1] = int(user.DiamondCount)
+}
+
+func handleChangeUserName() {
+
 }
 
 func handleStartBattle(w http.ResponseWriter, r *http.Request) {
@@ -177,6 +187,7 @@ func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
 
 func Init(synChannel chan int) {
 	synChan = synChannel
+	tokenMap = make(map[string]string)
 
 	http.HandleFunc("/regist", handleRegist)
 	http.HandleFunc("/login", handleLogin)

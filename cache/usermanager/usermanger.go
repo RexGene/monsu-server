@@ -12,7 +12,6 @@ type User struct {
 	PasswordSum       string
 	Uuid              uint64
 	MacAddr           string
-	Cert              string
 	LastUpdateDay     uint
 	GoldCount         uint8
 	DiamondCount      uint8
@@ -34,6 +33,7 @@ const (
 
 type UserManager struct {
 	userMap        map[string]*User
+	userUuidMap    map[uint64]*User
 	maxUserId      uint64
 	updateUserList []*User
 	sqlProxy       *sqlproxy.SqlProxy
@@ -46,6 +46,7 @@ func newInstance() *UserManager {
 		maxUserId:      0,
 		updateUserList: make([]*User, 0, defaultUpdateUserSize),
 		userMap:        make(map[string]*User),
+		userUuidMap:    make(map[uint64]*User),
 	}
 }
 
@@ -55,6 +56,16 @@ func GetInstance() *UserManager {
 	}
 
 	return instance
+}
+
+func (this *UserManager) ChangeName(uuid uint64, userName string) error {
+	user := this.userUuidMap[uuid]
+	if user == nil {
+		return errors.New("user not found:" + strconv.FormatUint(uuid, 10))
+	}
+
+	user.UserName = userName
+	return nil
 }
 
 func (this *UserManager) GetUser(userName string) (*User, error) {
@@ -165,6 +176,7 @@ func (this *UserManager) AddUser(userName string, passwordSum string, macAddr st
 	}
 
 	userMap[userName] = newUser
+	this.userUuidMap[this.maxUserId] = newUser
 	this.updateUserList = append(this.updateUserList, newUser)
 
 	return nil
@@ -219,6 +231,7 @@ func (this *UserManager) LoadUser() error {
 		temp, err := strconv.ParseUint(dataMap["last_update_day"], 10, 32)
 		if err != nil {
 			this.userMap = make(map[string]*User)
+			this.userUuidMap = make(map[uint64]*User)
 			return err
 		}
 
@@ -228,6 +241,7 @@ func (this *UserManager) LoadUser() error {
 		temp, err = strconv.ParseUint(dataMap["gold_count"], 10, 8)
 		if err != nil {
 			this.userMap = make(map[string]*User)
+			this.userUuidMap = make(map[uint64]*User)
 			return err
 		}
 
@@ -237,6 +251,7 @@ func (this *UserManager) LoadUser() error {
 		temp, err = strconv.ParseUint(dataMap["diamond_count"], 10, 8)
 		if err != nil {
 			this.userMap = make(map[string]*User)
+			this.userUuidMap = make(map[uint64]*User)
 			return err
 		}
 
@@ -245,6 +260,7 @@ func (this *UserManager) LoadUser() error {
 		temp, err = strconv.ParseUint(dataMap["gold_rank"], 10, 32)
 		if err != nil {
 			this.userMap = make(map[string]*User)
+			this.userUuidMap = make(map[uint64]*User)
 			return err
 		}
 
@@ -253,6 +269,7 @@ func (this *UserManager) LoadUser() error {
 		temp, err = strconv.ParseUint(dataMap["gold_win_amount"], 10, 32)
 		if err != nil {
 			this.userMap = make(map[string]*User)
+			this.userUuidMap = make(map[uint64]*User)
 			return err
 		}
 
@@ -261,6 +278,7 @@ func (this *UserManager) LoadUser() error {
 		temp, err = strconv.ParseUint(dataMap["gold_lose_amount"], 10, 32)
 		if err != nil {
 			this.userMap = make(map[string]*User)
+			this.userUuidMap = make(map[uint64]*User)
 			return err
 		}
 
@@ -269,6 +287,7 @@ func (this *UserManager) LoadUser() error {
 		temp, err = strconv.ParseUint(dataMap["diamond_rank"], 10, 32)
 		if err != nil {
 			this.userMap = make(map[string]*User)
+			this.userUuidMap = make(map[uint64]*User)
 			return err
 		}
 
@@ -277,6 +296,7 @@ func (this *UserManager) LoadUser() error {
 		temp, err = strconv.ParseUint(dataMap["diamond_win_amount"], 10, 32)
 		if err != nil {
 			this.userMap = make(map[string]*User)
+			this.userUuidMap = make(map[uint64]*User)
 			return err
 		}
 
@@ -285,6 +305,7 @@ func (this *UserManager) LoadUser() error {
 		temp, err = strconv.ParseUint(dataMap["diamond_lose_amount"], 10, 32)
 		if err != nil {
 			this.userMap = make(map[string]*User)
+			this.userUuidMap = make(map[uint64]*User)
 			return err
 		}
 
@@ -294,6 +315,7 @@ func (this *UserManager) LoadUser() error {
 		uuid, err := strconv.ParseUint(dataMap["uuid"], 10, 64)
 		if err != nil {
 			this.userMap = make(map[string]*User)
+			this.userUuidMap = make(map[uint64]*User)
 			return err
 		}
 
@@ -303,6 +325,7 @@ func (this *UserManager) LoadUser() error {
 
 		newUser.Uuid = uuid
 		this.userMap[newUser.UserName] = newUser
+		this.userUuidMap[uuid] = newUser
 	}
 
 	this.maxUserId = maxUuid
