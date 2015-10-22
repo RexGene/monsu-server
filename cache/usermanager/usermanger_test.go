@@ -68,7 +68,12 @@ func TestUpdateUser(t *testing.T) {
 		return
 	}
 
-	userManager.ChangeName(user.Uuid, "IamAssHole")
+	err = userManager.ChangeName(user.Uuid, "IamAssHole")
+	if err != nil {
+		t.Log(err)
+		t.Fail()
+		return
+	}
 
 	user.PasswordSum = "newPsw"
 	userManager.MarkUserChange(user.UserName)

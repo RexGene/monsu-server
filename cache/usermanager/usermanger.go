@@ -64,7 +64,12 @@ func (this *UserManager) ChangeName(uuid uint64, userName string) error {
 		return errors.New("user not found:" + strconv.FormatUint(uuid, 10))
 	}
 
+	oldName := user.UserName
 	user.UserName = userName
+
+	delete(this.userMap, oldName)
+	this.userMap[userName] = user
+
 	return nil
 }
 
@@ -93,8 +98,8 @@ func (this *UserManager) UpdateUserToDB() {
 
 	for _, user := range this.updateUserList {
 		condition := &sqlproxy.FieldData{
-			Name:  "user_name",
-			Value: user.UserName,
+			Name:  "uuid",
+			Value: strconv.FormatUint(uint64(user.Uuid), 10),
 		}
 
 		fields := make([]*sqlproxy.FieldData, 0, 32)
