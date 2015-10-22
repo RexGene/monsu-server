@@ -27,7 +27,7 @@ func initData() {
 func handleCmd() {
 	for {
 		select {
-		case <-time.After(time.Minute * 1):
+		case <-time.After(time.Minute * 10):
 			updateDB()
 		}
 	}
@@ -42,10 +42,7 @@ func updateDB() {
 		log.Println(err)
 	}
 
-	err = usermanager.GetInstance().UpdateUserToDB()
-	if err != nil {
-		log.Println(err)
-	}
+	usermanager.GetInstance().UpdateUserToDB()
 }
 
 func main() {

@@ -7,10 +7,15 @@ import (
 	"strconv"
 )
 
+var (
+	ErrUserNotFound = errors.New("not found user")
+)
+
 const (
 	defaultEventListSize  = 128
 	defaultZoneSize       = 1000
 	defaultZoneRecordSize = 512
+	defaultUserRecordSize = 512
 )
 
 const (
@@ -25,12 +30,29 @@ type Record struct {
 	RoleId      uint
 	PetId       uint
 	MountId     uint
-	WeapinId    uint
+	WeaponId    uint
 	EquipmentId uint
 	Scores      uint
 	Records     string
 	Uuid        uint64
 	Type        uint
+	TotalDay    int64
+}
+
+type RecordSlice []*Record
+
+func (this RecordSlice) Len() int {
+	return len(this)
+}
+
+func (this RecordSlice) Less(i, j int) bool {
+	return this[i].Scores < this[j].Scores
+}
+
+func (this RecordSlice) Swap(i, j int) {
+	temp := this[i]
+	this[i] = this[j]
+	this[j] = temp
 }
 
 type RecordManager struct {
@@ -38,6 +60,8 @@ type RecordManager struct {
 	sqlProxy          *sqlproxy.SqlProxy
 	zoneRecords       map[uint][]*Record
 	diamonZoneRecords map[uint][]*Record
+	userRecords       map[uint64][]*Record
+	diamonUserRecords map[uint64][]*Record
 }
 
 func newInstance() *RecordManager {
@@ -56,6 +80,25 @@ func GetInstance() *RecordManager {
 	return instance
 }
 
+func (this *RecordManager) GetUserRecords(uuid uint64, t int) ([]*Record, error) {
+	var recordsMap map[uint64][]*Record
+	switch t {
+	case goldType:
+		recordsMap = this.userRecords
+	case diamondType:
+		recordsMap = this.diamonUserRecords
+	default:
+		return nil, errors.New("type invalid:" + strconv.FormatInt(int64(t), 10))
+	}
+
+	result := recordsMap[uuid]
+	if result != nil {
+		return nil, errors.New("not found user")
+	}
+
+	return result, nil
+}
+
 func (this *RecordManager) AddRecord(cmd *Record) error {
 	this.cmdEventList = append(this.cmdEventList, cmd)
 
@@ -66,10 +109,14 @@ func (this *RecordManager) AddRecord(cmd *Record) error {
 	}
 
 	var zoneRecords map[uint][]*Record
+	var userRecords map[uint64][]*Record
+
 	if cmd.Type == goldType {
 		zoneRecords = this.zoneRecords
+		userRecords = this.userRecords
 	} else if cmd.Type == diamondType {
 		zoneRecords = this.diamonZoneRecords
+		userRecords = this.diamonUserRecords
 	} else {
 		return errors.New("unknow type:" + strconv.FormatUint(uint64(cmd.Type), 10))
 	}
@@ -77,8 +124,14 @@ func (this *RecordManager) AddRecord(cmd *Record) error {
 	if zoneRecords[index] == nil {
 		zoneRecords[index] = make([]*Record, 0, defaultZoneRecordSize)
 	}
-
 	zoneRecords[index] = append(zoneRecords[index], cmd)
+
+	uuid := cmd.Uuid
+	if userRecords[uuid] == nil {
+		userRecords[uuid] = make([]*Record, 0, defaultUserRecordSize)
+	}
+	userRecords[uuid] = append(userRecords[uuid], cmd)
+
 	return nil
 }
 
@@ -114,7 +167,7 @@ func (this *RecordManager) GetRecord(scores uint, fix int, t int) (*Record, erro
 
 	list := zoneRecords[index]
 	if list == nil {
-		return nil, errors.New("not found user")
+		return nil, ErrUserNotFound
 	} else {
 		return list[rand.Int()%len(list)], nil
 	}
@@ -153,7 +206,7 @@ func (this *RecordManager) UpdateToDB() error {
 
 		field = &sqlproxy.FieldData{
 			Name:  "weapon_id",
-			Value: strconv.FormatUint(uint64(recordCmd.WeapinId), 10),
+			Value: strconv.FormatUint(uint64(recordCmd.WeaponId), 10),
 		}
 		fields = append(fields, field)
 
@@ -182,8 +235,14 @@ func (this *RecordManager) UpdateToDB() error {
 		fields = append(fields, field)
 
 		field = &sqlproxy.FieldData{
-			Name:  "Records",
+			Name:  "records",
 			Value: recordCmd.Records,
+		}
+		fields = append(fields, field)
+
+		field = &sqlproxy.FieldData{
+			Name:  "total_day",
+			Value: strconv.FormatInt(recordCmd.TotalDay, 10),
 		}
 		fields = append(fields, field)
 
@@ -221,6 +280,7 @@ func (this *RecordManager) LoadData() error {
 	fieldNames = append(fieldNames, "uuid")
 	fieldNames = append(fieldNames, "scores")
 	fieldNames = append(fieldNames, "records")
+	fieldNames = append(fieldNames, "total_day")
 	fieldNames = append(fieldNames, "type")
 
 	queryCmd := &sqlproxy.QueryCmd{
@@ -246,6 +306,12 @@ func (this *RecordManager) LoadData() error {
 		}
 		record.RoleId = uint(value)
 
+		v, err := strconv.ParseInt(dataMap["total_day"], 10, 32)
+		if err != nil {
+			return err
+		}
+		record.TotalDay = v
+
 		value, err = strconv.Atoi(dataMap["pet_id"])
 		if err != nil {
 			return err
@@ -262,7 +328,7 @@ func (this *RecordManager) LoadData() error {
 		if err != nil {
 			return err
 		}
-		record.WeapinId = uint(value)
+		record.WeaponId = uint(value)
 
 		value, err = strconv.Atoi(dataMap["equipment_id"])
 		if err != nil {
