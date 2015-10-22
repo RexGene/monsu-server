@@ -136,7 +136,7 @@ func (this *UserManager) UpdateUserToDB() {
 		fields = append(fields, field)
 
 		field = &sqlproxy.FieldData{
-			Name:  "last_update_time",
+			Name:  "last_update_day",
 			Value: strconv.FormatUint(uint64(user.LastUpdateDay), 10),
 		}
 		fields = append(fields, field)

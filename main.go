@@ -13,12 +13,12 @@ var synChan chan int
 func initData() {
 	err := recordmanager.GetInstance().LoadData()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 
 	err = usermanager.GetInstance().LoadUser()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 
 	synChan = make(chan int, 1)
@@ -37,8 +37,15 @@ func updateDB() {
 	synChan <- 1
 	defer func() { <-synChan }()
 
-	recordmanager.GetInstance().UpdateToDB()
-	usermanager.GetInstance().UpdateUserToDB()
+	err := recordmanager.GetInstance().UpdateToDB()
+	if err != nil {
+		log.Println(err)
+	}
+
+	err = usermanager.GetInstance().UpdateUserToDB()
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 func main() {
