@@ -4,11 +4,12 @@ import (
 	"../../cache/recordmanager"
 	"../../cache/usermanager"
 	"crypto/md5"
+	"errors"
 	"fmt"
 	_ "github.com/RexGene/csvparser"
 	"log"
 	"net/http"
-	_ "sort"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +18,16 @@ import (
 const (
 	goldCostType    = 1
 	diamondCostType = 2
+)
+
+const (
+	notFound = -1
+)
+
+const (
+	defaultRank      = 5000
+	defualtLimit     = 3
+	defaultAvgAmount = 4
 )
 
 var synChan chan int
@@ -35,8 +46,58 @@ type enemyInfo struct {
 	records     string
 }
 
-func getTotalDay() (int64, error) {
-	return (time.Now().Unix() - 3600*8) / 86400, nil
+func checkUserUpdate(uuid uint64) (bool, error) {
+	user, err := usermanager.GetInstance().GetUserByUuid(uuid)
+	if err != nil {
+		return false, err
+	}
+
+	totalDay := uint(getTotalDay())
+	if user.LastUpdateDay != totalDay {
+		user.GoldCount = usermanager.DefaultGoldCount
+		user.DiamondCount = usermanager.DefaultDiamondCount
+
+		goldRank, err := calcLastDayRank(uuid, goldCostType)
+		if err != nil {
+			return false, err
+		}
+
+		user.GoldRank = uint(goldRank)
+
+		diamondRank, err := calcLastDayRank(uuid, diamondCostType)
+		if err != nil {
+			return false, err
+		}
+
+		user.DiamondRank = uint(diamondRank)
+
+		user.LastUpdateDay = totalDay
+
+		usermanager.GetInstance().MarkUserChange(user.UserName)
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func getTotalDay() int64 {
+	return (time.Now().Unix() - 3600*8) / 86400
+}
+
+func getOldRank(t int, user *usermanager.User, rank *int, err *error) {
+	if t == goldCostType {
+		*rank = int(user.GoldRank)
+		if *rank == 0 {
+			*rank = defaultRank
+		}
+	} else if t == diamondCostType {
+		*rank = int(user.DiamondRank)
+		if *rank == 0 {
+			*rank = defaultRank
+		}
+	} else {
+		*err = errors.New("cost type invalid:" + strconv.FormatInt(int64(t), 10))
+	}
 }
 
 func calcLastDayRank(uuid uint64, t int) (rank int, err error) {
@@ -47,31 +108,58 @@ func calcLastDayRank(uuid uint64, t int) (rank int, err error) {
 
 	recordLen := len(records)
 	if recordLen == 0 {
+		rank = defaultRank
 		return
 	}
 
-	/*
-		today, err := getTotalDay()
-		if err != nil {
-			return
+	today := getTotalDay()
+	user, err := usermanager.GetInstance().GetUserByUuid(uuid)
+	if err != nil {
+		return
+	}
+
+	//sort
+	yesterday := today - 1
+
+	//find yesterday record range
+	beginIndex := notFound
+	endIndex := notFound
+	for i := recordLen - 1; i < 0; i-- {
+		totalDay := records[i].TotalDay
+
+		if totalDay == yesterday {
+			if endIndex == notFound {
+				endIndex = i + 1
+			}
+
+			beginIndex = i
+		}
+	}
+
+	if beginIndex != notFound {
+		//yesterday exist
+		s := records[beginIndex:endIndex]
+		if len(s) < defualtLimit {
+			getOldRank(t, user, &rank, &err)
 		}
 
-		//sort
-		yesterday := today - 1
+		sort.Sort(sort.Reverse(recordmanager.RecordSlice(s)))
 
-		beginIndex := -1
-		endIndex := -1
-		for i := recordLen - 1; i == 0; i-- {
-			totalDay := records[i].TotalDay
+		for _, v := range s {
+			fmt.Printf("%v", v)
+		}
 
-			if totalDay < yesterday {
-				beginIndex = i + 1
-			} else if totalDay == yesterday {
-				if endIndex == -1 {
-					endIndex = i + 1
-				}
-			}
-		}*/
+		total := uint(0)
+		size := uint(defaultAvgAmount)
+		for _, r := range s[:size] {
+			total += r.Scores
+		}
+
+		rank = int(total / size)
+	} else {
+		//not exist
+		getOldRank(t, user, &rank, &err)
+	}
 
 	return
 }
@@ -217,6 +305,8 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	if user.Token != "" {
 		delete(tokenMap, user.Token)
 	}
+
+	checkUserUpdate(user.Uuid)
 
 	user.Token = sumHexStr
 	tokenMap[sumHexStr] = userName

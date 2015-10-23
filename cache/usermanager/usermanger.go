@@ -26,8 +26,8 @@ type User struct {
 }
 
 const (
-	defaultGoldCount      = 5
-	defaultDiamondCount   = 5
+	DefaultGoldCount      = 5
+	DefaultDiamondCount   = 5
 	defaultUpdateUserSize = 1024
 )
 
@@ -71,6 +71,15 @@ func (this *UserManager) ChangeName(uuid uint64, userName string) error {
 	this.userMap[userName] = user
 
 	return nil
+}
+
+func (this *UserManager) GetUserByUuid(uuid uint64) (*User, error) {
+	user := this.userUuidMap[uuid]
+	if user == nil {
+		return user, errors.New("user not found:" + strconv.FormatUint(uuid, 10))
+	}
+
+	return user, nil
 }
 
 func (this *UserManager) GetUser(userName string) (*User, error) {
@@ -173,8 +182,8 @@ func (this *UserManager) AddUser(userName string, passwordSum string, macAddr st
 		UserName:      userName,
 		PasswordSum:   passwordSum,
 		MacAddr:       macAddr,
-		GoldCount:     defaultGoldCount,
-		DiamondCount:  defaultDiamondCount,
+		GoldCount:     DefaultGoldCount,
+		DiamondCount:  DefaultDiamondCount,
 		LastUpdateDay: uint((time.Now().Unix() - (3600 * 8)) / 86400),
 		Uuid:          this.maxUserId,
 		IsNew:         true,
