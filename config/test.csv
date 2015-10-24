@@ -1,0 +1,12 @@
+,
+key,value
+MinRoleId,1
+MaxRoleId,4
+MinMountId,1
+MaxMountId,4
+MinPetId,1
+MaxPetId,4
+MinWeaponId,1
+MaxWeaponId,4
+MinEquId,1
+MaxEquId,4

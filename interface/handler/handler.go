@@ -1,13 +1,14 @@
 package handler
 
 import (
+	"../../cache/configmanager"
 	"../../cache/recordmanager"
 	"../../cache/usermanager"
 	"crypto/md5"
 	"errors"
 	"fmt"
-	_ "github.com/RexGene/csvparser"
 	"log"
+	"math/rand"
 	"net/http"
 	"sort"
 	"strconv"
@@ -53,6 +54,8 @@ func checkUserUpdate(uuid uint64) (bool, error) {
 	}
 
 	totalDay := uint(getTotalDay())
+
+	//reset user data
 	if user.LastUpdateDay != totalDay {
 		user.GoldCount = usermanager.DefaultGoldCount
 		user.DiamondCount = usermanager.DefaultDiamondCount
@@ -70,6 +73,11 @@ func checkUserUpdate(uuid uint64) (bool, error) {
 		}
 
 		user.DiamondRank = uint(diamondRank)
+		user.GoldWinAmount = 0
+		user.GoldLoseAmount = 0
+		user.DiamondWinAmount = 0
+		user.DiamondLoseAmount = 0
+		user.FixLevel = 0
 
 		user.LastUpdateDay = totalDay
 
@@ -394,6 +402,7 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
+	log.Println(r.URL)
 	synChan <- 1
 	defer func() { <-synChan }()
 
@@ -413,7 +422,7 @@ func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	token := r.FormValue("token")
-	if isStringValid(token) {
+	if !isStringValid(token) {
 		msg = "token invalid"
 		log.Println(msg)
 		return
@@ -428,7 +437,7 @@ func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userName := tokenMap[token]
-	if userName != "" {
+	if userName == "" {
 		msg = "token not found user"
 		log.Println(msg)
 		return
@@ -449,14 +458,14 @@ func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
 
 	switch costType {
 	case goldCostType:
-		info, err = getEnemyData(user.GoldRank, int(costType))
+		info, err = getEnemyData(user.GoldRank, user.FixLevel, int(costType))
 		if err != nil {
 			msg = err.Error()
 			log.Println(msg)
 			return
 		}
 	case diamondCostType:
-		info, err = getEnemyData(user.DiamondRank, int(costType))
+		info, err = getEnemyData(user.DiamondRank, user.FixLevel, int(costType))
 		if err != nil {
 			msg = err.Error()
 			log.Println(msg)
@@ -471,21 +480,33 @@ func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
 	result = 1
 }
 
-func getEnemyData(scores uint, costType int) (*enemyInfo, error) {
-	record, err := recordmanager.GetInstance().GetRecord(uint(scores), 0, int(costType))
+func getEnemyData(scores uint, fix int, costType int) (*enemyInfo, error) {
+	config, err := configmanager.GetInstance().GetConfig("config/const.cvs")
+	if err != nil {
+		return nil, err
+	}
+
+	record, err := recordmanager.GetInstance().GetRecord(uint(scores), fix, int(costType))
 	if err != nil {
 		if err == recordmanager.ErrUserNotFound {
-			return &enemyInfo{
-				name:        "Guest",
-				roleId:      3,
-				petId:       1,
-				mountId:     1,
-				weaponId:    4,
-				equipmentId: 10,
-				isRobot:     1,
-				scores:      199999,
-				records:     "",
-			}, nil
+			enemyInfo := &enemyInfo{
+				name: "Guest",
+				roleId: config["MinRoleId"]["value"].Uint(0) +
+					uint(rand.Uint32())%config["RoleIdRange"]["value"].Uint(0),
+				petId: config["MinPetId"]["value"].Uint(0) +
+					uint(rand.Uint32())%config["PetIdRange"]["value"].Uint(0),
+				mountId: config["MinMountId"]["value"].Uint(0) +
+					uint(rand.Uint32())%config["MountIdRange"]["value"].Uint(0),
+				weaponId: config["MinWeaponId"]["value"].Uint(0) +
+					uint(rand.Uint32())%config["WeaponIdRange"]["value"].Uint(0),
+				equipmentId: config["MinEquipmentId"]["value"].Uint(0) +
+					uint(rand.Uint32())%config["EquiptmentRange"]["value"].Uint(0),
+				isRobot: 1,
+				scores:  uint(rand.Uint32() % 1000),
+				records: "",
+			}
+
+			return enemyInfo, nil
 		} else {
 			return nil, err
 		}

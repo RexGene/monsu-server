@@ -23,6 +23,7 @@ type User struct {
 	DiamondLoseAmount uint
 	IsNew             bool
 	Token             string
+	FixLevel          int
 }
 
 const (
@@ -186,6 +187,7 @@ func (this *UserManager) AddUser(userName string, passwordSum string, macAddr st
 		DiamondCount:  DefaultDiamondCount,
 		LastUpdateDay: uint((time.Now().Unix() - (3600 * 8)) / 86400),
 		Uuid:          this.maxUserId,
+		FixLevel:      0,
 		IsNew:         true,
 	}
 
@@ -338,6 +340,7 @@ func (this *UserManager) LoadUser() error {
 		}
 
 		newUser.Uuid = uuid
+		newUser.FixLevel = 0
 		this.userMap[newUser.UserName] = newUser
 		this.userUuidMap[uuid] = newUser
 	}
