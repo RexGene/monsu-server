@@ -107,7 +107,7 @@ func getOldRank(t int, user *usermanager.User, rank *int, err *error) {
 		return
 	}
 
-	defaultRank := config["DefaultRank"]["value"].Int(5000)
+	defaultRank := config["DefaultRank"]["value"].Int(defaultRank)
 
 	if t == goldCostType {
 		*rank = int(user.GoldRank)
@@ -212,7 +212,7 @@ func isStringValid(str string) bool {
 }
 
 func handleRegist(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.URL)
+	log.Println("[request]", r.URL)
 
 	synChan <- 1
 	defer func() { <-synChan }()
@@ -225,27 +225,28 @@ func handleRegist(w http.ResponseWriter, r *http.Request) {
 
 	defer func() {
 		responseStr = fmt.Sprintf("{\"result\":%d, \"cert\":\"%s\", \"msg\":\"%s\"}", result, certHexStr, msg)
+		log.Println("[response]", responseStr)
 		w.Write([]byte(responseStr))
 	}()
 
 	userName := r.FormValue("userName")
 	if !isStringValid(userName) {
 		msg = "userName invalid"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
 	macAddr := r.FormValue("macAddr")
 	if !isStringValid(macAddr) {
 		msg = "macAddr invalid"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
 	timeStamp := r.FormValue("timeStamp")
 	if !isStringValid(timeStamp) {
 		msg = "timeStamp invalid"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -267,7 +268,7 @@ func handleRegist(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleLogin(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.URL)
+	log.Println("[request]", r.URL)
 
 	synChan <- 1
 	defer func() { <-synChan }()
@@ -281,27 +282,28 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		responseStr := fmt.Sprintf("{\"result\":%d, \"surplusAmount\":[%d, %d], \"availableCount\":[%d, %d], \"token\":\"%s\", \"msg\":\"%s\"}",
 			result, surplusAmount[0], surplusAmount[1], availableCount[0], availableCount[1], token, msg)
+		log.Println("[response]", responseStr)
 		w.Write([]byte(responseStr))
 	}()
 
 	userName := r.FormValue("userName")
 	if !isStringValid(userName) {
 		msg = "userName invalid"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
 	timeStamp := r.FormValue("timeStamp")
 	if !isStringValid(timeStamp) {
 		msg = "timeStamp invalid"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
 	token = r.FormValue("token")
 	if !isStringValid(token) {
 		msg = "token invalid"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -309,7 +311,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	user, err := userManager.GetUser(userName)
 	if err != nil {
 		msg = err.Error()
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -326,7 +328,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		msg = "token not same"
 		token = ""
 		log.Println("sumHexStr:" + sumHexStr)
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -350,33 +352,34 @@ func handleChangeUserName(w http.ResponseWriter, r *http.Request) {
 	synChan <- 1
 	defer func() { <-synChan }()
 
-	log.Println(r.URL)
+	log.Println("[request]", r.URL)
 
 	msg := "success"
 	result := 0
 	defer func() {
 		responseStr := fmt.Sprintf("{\"result\":%d, \"msg\":\"%s\"}", result, msg)
+		log.Println(responseStr)
 		w.Write([]byte(responseStr))
 	}()
 
 	userName := r.FormValue("userName")
 	if !isStringValid(userName) {
 		msg = "userName invalid"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
 	newUserName := r.FormValue("newUserName")
 	if !isStringValid(newUserName) {
 		msg = "newUserName invalid"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
 	token := r.FormValue("token")
 	if !isStringValid(token) {
 		msg = "token invalid"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -384,20 +387,20 @@ func handleChangeUserName(w http.ResponseWriter, r *http.Request) {
 	user, err := userManager.GetUser(userName)
 	if err != nil {
 		msg = err.Error()
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
 	if token != user.Token {
 		msg = "token not match"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
 	err = userManager.ChangeName(user.Uuid, newUserName)
 	if err != nil {
 		msg = err.Error()
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -412,7 +415,7 @@ func handleGetTime(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.URL)
+	log.Println("[request]", r.URL)
 	synChan <- 1
 	defer func() { <-synChan }()
 
@@ -431,13 +434,14 @@ func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
 		responseStr := fmt.Sprintf("{\"result\":%d, \"enemyName\":\"%s\", \"enemyRoleId\":%d, \"enemyMountId\":%d, \"enemyWeaponId\":%d, \"enemyEquipmentId\":%d, \"enemyPetId\":%d, \"records\":\"%s\", \"scores\":%d , \"goldCount\":%d, \"diamondCount\":%d,  \"isRobot\":%d, \"msg\":\"%s\"}",
 			result, info.name, info.roleId, info.mountId, info.weaponId, info.equipmentId,
 			info.petId, info.records, info.scores, goldCount, diamondCount, info.isRobot, msg)
+		log.Println("[response]", responseStr)
 		w.Write([]byte(responseStr))
 	}()
 
 	token := r.FormValue("token")
 	if !isStringValid(token) {
 		msg = "token invalid"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -445,7 +449,7 @@ func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
 	costType, err := strconv.ParseInt(costTypeStr, 10, 32)
 	if err != nil {
 		msg = err.Error()
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -453,21 +457,21 @@ func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
 	isDouble, err := strconv.ParseInt(isDoubleStr, 10, 8)
 	if err != nil {
 		msg = err.Error()
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
 	userName := tokenMap[token]
 	if userName == "" {
 		msg = "token not found user"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
 	user, err := usermanager.GetInstance().GetUser(userName)
 	if err != nil {
 		msg = err.Error()
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -476,42 +480,45 @@ func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
 		if user.GoldCount == 0 {
 			err = errors.New("gold count not enough")
 			msg = err.Error()
-			log.Println(msg)
+			log.Println("[error]", msg)
 			return
 		}
 
 		info, err = getEnemyData(user.GoldRank, user.FixLevel, int(costType))
 		if err != nil {
 			msg = err.Error()
-			log.Println(msg)
+			log.Println("[error]", msg)
 			return
 		}
 
-		goldCount = int(user.GoldCount - 1)
+		user.GoldCount--
 		info.isDouble = isDouble != 0
 	case diamondCostType:
 		if user.DiamondCount == 0 {
 			err = errors.New("diamond count not enough")
 			msg = err.Error()
-			log.Println(msg)
+			log.Println("[error]", msg)
 			return
 		}
 
 		info, err = getEnemyData(user.DiamondRank, user.FixLevel, int(costType))
 		if err != nil {
 			msg = err.Error()
-			log.Println(msg)
+			log.Println("[error]", msg)
 			return
 		}
 
-		diamondCount = int(user.DiamondCount - 1)
+		user.DiamondCount--
 		info.isDouble = isDouble != 0
 	default:
 		msg = "invalid costType"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
+	diamondCount = int(user.DiamondCount)
+	goldCount = int(user.GoldCount)
+	usermanager.GetInstance().MarkUserChange(userName)
 	result = 1
 }
 
@@ -521,7 +528,7 @@ func getEnemyData(scores uint, fix int, costType int) (*enemyInfo, error) {
 		return nil, err
 	}
 
-	nameConfig, err := configmanager.GetInstance().GetConfig("config/const.csv")
+	nameConfig, err := configmanager.GetInstance().GetConfig("config/name.csv")
 	if err != nil {
 		return nil, err
 	}
@@ -531,7 +538,9 @@ func getEnemyData(scores uint, fix int, costType int) (*enemyInfo, error) {
 	if configLen == 0 {
 		name = "Guest"
 	} else {
+		idStr := strconv.FormatInt(int64(1+rand.Int()%configLen), 10)
 		name = nameConfig[strconv.FormatInt(int64(1+rand.Int()%configLen), 10)]["name"].Str()
+		println("idStr:", idStr, " name:", name)
 	}
 
 	record, err := recordmanager.GetInstance().GetRecord(uint(scores), fix, int(costType))
@@ -578,7 +587,7 @@ func getEnemyData(scores uint, fix int, costType int) (*enemyInfo, error) {
 }
 
 func handleBuyBattleAmount(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.URL)
+	log.Println("[request]", r.URL)
 	synChan <- 1
 	defer func() { <-synChan }()
 
@@ -588,36 +597,36 @@ func handleBuyBattleAmount(w http.ResponseWriter, r *http.Request) {
 	var availableCount [2]int
 
 	defer func() {
-		responseStr := fmt.Sprintf("{\"result\":%d, \"surplusAmount\":[%d, %d], \"availableCount\":[%d, %d], \"msg\":\"%s\"}", result, surplusAmount[0], surplusAmount[1], availableCount[0], availableCount[1])
-
+		responseStr := fmt.Sprintf("{\"result\":%d, \"surplusAmount\":[%d, %d], \"availableCount\":[%d, %d], \"msg\":\"%s\"}", result, surplusAmount[0], surplusAmount[1], availableCount[0], availableCount[1], msg)
+		log.Println("[response]", responseStr)
 		w.Write([]byte(responseStr))
 	}()
 
 	buyType, err := strconv.ParseInt(r.FormValue("buyType"), 10, 32)
 	if err != nil {
 		msg = err.Error()
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
 	token := r.FormValue("token")
 	if token == "" {
 		msg = "token invalid"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
 	userName := tokenMap[token]
 	if userName == "" {
 		msg = "token not found user"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
 	user, err := usermanager.GetInstance().GetUser(userName)
 	if err != nil {
 		msg = err.Error()
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -625,7 +634,7 @@ func handleBuyBattleAmount(w http.ResponseWriter, r *http.Request) {
 	case goldCostType:
 		if user.GoldAvailableBuyCount == 0 {
 			msg = "gold available buy count not enough"
-			log.Println(msg)
+			log.Println("[error]", msg)
 			return
 		} else {
 			user.GoldAvailableBuyCount--
@@ -634,7 +643,7 @@ func handleBuyBattleAmount(w http.ResponseWriter, r *http.Request) {
 	case diamondCostType:
 		if user.DiamondAvailableBuyCount == 0 {
 			msg = "diamond available buy count not enough"
-			log.Println(msg)
+			log.Println("[error]", msg)
 			return
 		} else {
 			user.DiamondAvailableBuyCount--
@@ -642,7 +651,7 @@ func handleBuyBattleAmount(w http.ResponseWriter, r *http.Request) {
 		}
 	default:
 		msg = "buy type invalid"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -651,11 +660,13 @@ func handleBuyBattleAmount(w http.ResponseWriter, r *http.Request) {
 	availableCount[0] = int(user.GoldAvailableBuyCount)
 	availableCount[1] = int(user.DiamondAvailableBuyCount)
 
+	usermanager.GetInstance().MarkUserChange(userName)
+
 	result = 1
 }
 
 func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.URL)
+	log.Println("[request]", r.URL)
 	synChan <- 1
 	defer func() { <-synChan }()
 
@@ -673,20 +684,21 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		responseStr := fmt.Sprintf("{\"result\":%d, \"costType\":%d, \"isDouble\":%d, \"userName\":\"%s\", \"enemyName\":\"%s\", \"scores\":%d, \"enemyScores\":%d, \"isWin\":%d, \"msg\":\"%s\"}",
 			result, costType, isDouble, userName, enemyName, scores, enemyScores, isWin, msg)
+		log.Println("[response]", responseStr)
 		w.Write([]byte(responseStr))
 	}()
 
 	token := r.PostFormValue("token")
 	if token == "" {
 		msg = "token invalid"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
 	userName = tokenMap[token]
 	if userName == "" {
 		msg = "token not found user"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -695,7 +707,7 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 	user, err := usermanager.GetInstance().GetUser(userName)
 	if err != nil {
 		msg = err.Error()
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -704,14 +716,14 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 	enemyInfo := enemyMap[user.Uuid]
 	if enemyInfo == nil {
 		msg = "user not find enemy"
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
 	value, err := strconv.ParseInt(r.PostFormValue("costType"), 10, 32)
 	if err != nil {
 		msg = err.Error()
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -721,7 +733,7 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 	value, err = strconv.ParseInt(r.PostFormValue("roleId"), 10, 32)
 	if err != nil {
 		msg = err.Error()
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -730,7 +742,7 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 	value, err = strconv.ParseInt(r.PostFormValue("petId"), 10, 32)
 	if err != nil {
 		msg = err.Error()
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -739,7 +751,7 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 	value, err = strconv.ParseInt(r.PostFormValue("equipmentId"), 10, 32)
 	if err != nil {
 		msg = err.Error()
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -748,7 +760,7 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 	value, err = strconv.ParseInt(r.PostFormValue("weaponId"), 10, 32)
 	if err != nil {
 		msg = err.Error()
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -757,7 +769,7 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 	value, err = strconv.ParseInt(r.PostFormValue("mountId"), 10, 32)
 	if err != nil {
 		msg = err.Error()
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -767,7 +779,7 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 	value, err = strconv.ParseInt(totalScoresStr, 10, 32)
 	if err != nil {
 		msg = err.Error()
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -788,7 +800,7 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 	if sumHexStr != recordSum {
 		msg = "sum not match"
 		log.Println("sumHexStr:" + sumHexStr)
-		log.Println(msg)
+		log.Println("[error]", msg)
 		return
 	}
 
@@ -805,6 +817,31 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 	delete(enemyMap, user.Uuid)
 }
 
+func handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
+	log.Println("[request]", r.URL)
+	synChan <- 1
+	defer func() { <-synChan }()
+
+	msg := "success"
+	result := 0
+
+	defer func() {
+		responseStr := fmt.Sprintf("{\"result\":%d, \"msg\":\"%s\"}", result, msg)
+		log.Println("[response]", responseStr)
+		w.Write([]byte(responseStr))
+	}()
+
+	key := r.FormValue("key")
+	if key != "UKing888" {
+		msg = "key not match"
+		log.Println("[error]", msg)
+		return
+	}
+
+	result = 1
+	configmanager.GetInstance().Clear()
+}
+
 func Init(synChannel chan int) {
 	synChan = synChannel
 	tokenMap = make(map[string]string)
@@ -816,6 +853,7 @@ func Init(synChannel chan int) {
 	http.HandleFunc("/changeUserName", handleChangeUserName)
 	http.HandleFunc("/findEnemy", handleFindEnemy)
 	http.HandleFunc("/buyBattleAmount", handleBuyBattleAmount)
+	http.HandleFunc("/updateConfig", handleUpdateConfig)
 
 	log.Fatal(http.ListenAndServe(":14000", nil))
 }
