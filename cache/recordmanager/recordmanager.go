@@ -1,6 +1,7 @@
 package recordmanager
 
 import (
+	"../configmanager"
 	"errors"
 	"github.com/RexGene/sqlproxy"
 	"math/rand"
@@ -13,7 +14,6 @@ var (
 
 const (
 	defaultEventListSize  = 128
-	defaultZoneSize       = 1000
 	defaultZoneRecordSize = 512
 	defaultUserRecordSize = 512
 )
@@ -100,9 +100,13 @@ func (this *RecordManager) GetUserRecords(uuid uint64, t int) ([]*Record, error)
 }
 
 func (this *RecordManager) AddRecord(cmd *Record) error {
-	this.cmdEventList = append(this.cmdEventList, cmd)
+	config, err := configmanager.GetInstance().GetConfig("config/const.csv")
+	if err != nil {
+		return err
+	}
 
-	zoneLen := uint(defaultZoneSize)
+	this.cmdEventList = append(this.cmdEventList, cmd)
+	zoneLen := config["ZoneRange"]["value"].Uint(1)
 	index := cmd.Scores / zoneLen
 	if index >= zoneLen {
 		index = zoneLen - 1
@@ -136,7 +140,11 @@ func (this *RecordManager) AddRecord(cmd *Record) error {
 }
 
 func (this *RecordManager) GetRecord(scores uint, fix int, t int) (*Record, error) {
-	zoneLen := uint(defaultZoneSize)
+	config, err := configmanager.GetInstance().GetConfig("config/const.csv")
+	if err != nil {
+		return nil, err
+	}
+	zoneLen := config["ZoneRange"]["value"].Uint(1)
 	index := scores / zoneLen
 
 	if fix < 0 {
@@ -270,6 +278,11 @@ func (this *RecordManager) LoadData() error {
 		return err
 	}
 
+	config, err := configmanager.GetInstance().GetConfig("config/const.csv")
+	if err != nil {
+		return err
+	}
+
 	fieldNames := make([]string, 0, 16)
 	fieldNames = append(fieldNames, "user_name")
 	fieldNames = append(fieldNames, "role_id")
@@ -354,7 +367,7 @@ func (this *RecordManager) LoadData() error {
 		}
 		record.Scores = uint(value)
 
-		zoneLen := uint(defaultZoneSize)
+		zoneLen := config["ZoneRange"]["value"].Uint(1)
 		index := record.Scores / zoneLen
 		if index >= zoneLen {
 			index = zoneLen - 1

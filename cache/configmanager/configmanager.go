@@ -20,6 +20,10 @@ func GetInstance() *ConfigManager {
 	return instance
 }
 
+func (this *ConfigManager) Clear() {
+	this.dataMap = make(map[string]csvparser.Result)
+}
+
 func (this *ConfigManager) GetConfig(configName string) (result csvparser.Result, err error) {
 	result = this.dataMap[configName]
 	if result == nil {

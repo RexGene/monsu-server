@@ -8,22 +8,24 @@ import (
 )
 
 type User struct {
-	UserName          string
-	PasswordSum       string
-	Uuid              uint64
-	MacAddr           string
-	LastUpdateDay     uint
-	GoldCount         uint8
-	DiamondCount      uint8
-	GoldRank          uint
-	GoldWinAmount     uint
-	GoldLoseAmount    uint
-	DiamondRank       uint
-	DiamondWinAmount  uint
-	DiamondLoseAmount uint
-	IsNew             bool
-	Token             string
-	FixLevel          int
+	UserName                 string
+	PasswordSum              string
+	Uuid                     uint64
+	MacAddr                  string
+	LastUpdateDay            uint
+	GoldCount                uint8
+	DiamondCount             uint8
+	GoldRank                 uint
+	GoldWinAmount            uint
+	GoldLoseAmount           uint
+	DiamondRank              uint
+	DiamondWinAmount         uint
+	DiamondLoseAmount        uint
+	GoldAvailableBuyCount    uint
+	DiamondAvailableBuyCount uint
+	IsNew                    bool
+	Token                    string
+	FixLevel                 int
 }
 
 const (
@@ -151,6 +153,18 @@ func (this *UserManager) UpdateUserToDB() {
 		fields = append(fields, field)
 
 		field = &sqlproxy.FieldData{
+			Name:  "diamond_available_buy_count",
+			Value: strconv.FormatUint(uint64(user.DiamondAvailableBuyCount), 10),
+		}
+		fields = append(fields, field)
+
+		field = &sqlproxy.FieldData{
+			Name:  "gold_available_buy_count",
+			Value: strconv.FormatUint(uint64(user.GoldAvailableBuyCount), 10),
+		}
+		fields = append(fields, field)
+
+		field = &sqlproxy.FieldData{
 			Name:  "last_update_day",
 			Value: strconv.FormatUint(uint64(user.LastUpdateDay), 10),
 		}
@@ -224,6 +238,9 @@ func (this *UserManager) LoadUser() error {
 	fieldNames = append(fieldNames, "diamond_rank")
 	fieldNames = append(fieldNames, "diamond_win_amount")
 	fieldNames = append(fieldNames, "diamond_lose_amount")
+
+	fieldNames = append(fieldNames, "diamond_available_buy_count")
+	fieldNames = append(fieldNames, "gold_available_buy_count")
 
 	queryCmd := &sqlproxy.QueryCmd{
 		TableName:  "users",
@@ -326,6 +343,24 @@ func (this *UserManager) LoadUser() error {
 		}
 
 		newUser.DiamondLoseAmount = uint(temp)
+
+		temp, err = strconv.ParseUint(dataMap["gold_available_buy_count"], 10, 32)
+		if err != nil {
+			this.userMap = make(map[string]*User)
+			this.userUuidMap = make(map[uint64]*User)
+			return err
+		}
+
+		newUser.GoldAvailableBuyCount = uint(temp)
+
+		temp, err = strconv.ParseUint(dataMap["diamond_available_buy_count"], 10, 32)
+		if err != nil {
+			this.userMap = make(map[string]*User)
+			this.userUuidMap = make(map[uint64]*User)
+			return err
+		}
+
+		newUser.DiamondAvailableBuyCount = uint(temp)
 
 		//uuid
 		uuid, err := strconv.ParseUint(dataMap["uuid"], 10, 64)
