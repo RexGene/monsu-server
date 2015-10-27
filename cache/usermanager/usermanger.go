@@ -26,6 +26,7 @@ type User struct {
 	IsNew                    bool
 	Token                    string
 	FixLevel                 int
+	DiamondFixLevel          int
 }
 
 const (

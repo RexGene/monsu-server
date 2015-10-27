@@ -86,6 +86,7 @@ func checkUserUpdate(uuid uint64) (bool, error) {
 		user.GoldAvailableBuyCount = config["GoldAvailableBuyCount"]["value"].Uint(3)
 		user.DiamondAvailableBuyCount = config["DiamondAvailableBuyCount"]["value"].Uint(3)
 		user.FixLevel = 0
+		user.DiamondFixLevel = 0
 
 		user.LastUpdateDay = totalDay
 
@@ -179,6 +180,11 @@ func calcLastDayRank(uuid uint64, t int) (rank int, err error) {
 
 		total := uint(0)
 		size := config["DefaultAvgAmount"]["value"].Uint(defaultAvgAmount)
+		l := len(s)
+		if size > uint(l) {
+			size = uint(l)
+		}
+
 		for _, r := range s[:size] {
 			total += r.Scores
 		}
@@ -501,7 +507,7 @@ func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		info, err = getEnemyData(user.DiamondRank, user.FixLevel, int(costType))
+		info, err = getEnemyData(user.DiamondRank, user.DiamondFixLevel, int(costType))
 		if err != nil {
 			msg = err.Error()
 			log.Println("[error]", msg)
@@ -688,6 +694,13 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(responseStr))
 	}()
 
+	config, e := configmanager.GetInstance().GetConfig("config/const.csv")
+	if e != nil {
+		msg = e.Error()
+		log.Println("[error]", msg)
+		return
+	}
+
 	token := r.PostFormValue("token")
 	if token == "" {
 		msg = "token invalid"
@@ -812,6 +825,40 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 	enemyName = enemyInfo.name
 	enemyScores = enemyInfo.scores
 	isWin = record.Scores > enemyInfo.scores
+	goldUpLimit := config["GoldUpLimit"]["value"].Uint(1)
+	diamondUpLimit := config["DiamondUpLimit"]["value"].Uint(1)
+
+	if isWin {
+		switch costType {
+		case goldCostType:
+			user.GoldWinAmount++
+			if user.GoldWinAmount >= goldUpLimit {
+				user.FixLevel++
+			}
+		case diamondCostType:
+			user.DiamondWinAmount++
+			if user.DiamondWinAmount >= diamondUpLimit {
+				user.DiamondFixLevel++
+			}
+		}
+
+	} else {
+		switch costType {
+		case goldCostType:
+			user.GoldLoseAmount++
+			if user.GoldWinAmount < goldUpLimit {
+				user.FixLevel--
+			}
+		case diamondCostType:
+			user.DiamondLoseAmount++
+			if user.DiamondWinAmount < diamondUpLimit {
+				user.DiamondFixLevel--
+			}
+		}
+	}
+
+	usermanager.GetInstance().MarkUserChange(user.UserName)
+
 	result = 1
 
 	delete(enemyMap, user.Uuid)
