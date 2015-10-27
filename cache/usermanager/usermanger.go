@@ -4,7 +4,6 @@ import (
 	"errors"
 	"github.com/RexGene/sqlproxy"
 	"strconv"
-	"time"
 )
 
 type User struct {
@@ -200,7 +199,7 @@ func (this *UserManager) AddUser(userName string, passwordSum string, macAddr st
 		MacAddr:       macAddr,
 		GoldCount:     DefaultGoldCount,
 		DiamondCount:  DefaultDiamondCount,
-		LastUpdateDay: uint((time.Now().Unix() - (3600 * 8)) / 86400),
+		LastUpdateDay: 0,
 		Uuid:          this.maxUserId,
 		FixLevel:      0,
 		IsNew:         true,

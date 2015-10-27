@@ -45,7 +45,7 @@ type enemyInfo struct {
 	scores      uint
 	isRobot     uint
 	records     string
-	isDouble    bool
+	isDouble    uint
 }
 
 func checkUserUpdate(uuid uint64) (bool, error) {
@@ -498,7 +498,7 @@ func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
 		}
 
 		user.GoldCount--
-		info.isDouble = isDouble != 0
+		info.isDouble = uint(isDouble)
 	case diamondCostType:
 		if user.DiamondCount == 0 {
 			err = errors.New("diamond count not enough")
@@ -515,13 +515,14 @@ func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
 		}
 
 		user.DiamondCount--
-		info.isDouble = isDouble != 0
+		info.isDouble = uint(isDouble)
 	default:
 		msg = "invalid costType"
 		log.Println("[error]", msg)
 		return
 	}
 
+	enemyMap[user.Uuid] = info
 	diamondCount = int(user.DiamondCount)
 	goldCount = int(user.GoldCount)
 	usermanager.GetInstance().MarkUserChange(userName)
@@ -667,7 +668,6 @@ func handleBuyBattleAmount(w http.ResponseWriter, r *http.Request) {
 	availableCount[1] = int(user.DiamondAvailableBuyCount)
 
 	usermanager.GetInstance().MarkUserChange(userName)
-
 	result = 1
 }
 
@@ -680,12 +680,12 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 	msg := "success"
 	result := 0
 	costType := 0
-	isDouble := false
+	isDouble := 0
 	userName := ""
 	enemyName := ""
 	scores := 0
 	enemyScores := uint(0)
-	isWin := false
+	isWin := 0
 
 	defer func() {
 		responseStr := fmt.Sprintf("{\"result\":%d, \"costType\":%d, \"isDouble\":%d, \"userName\":\"%s\", \"enemyName\":\"%s\", \"scores\":%d, \"enemyScores\":%d, \"isWin\":%d, \"msg\":\"%s\"}",
@@ -707,6 +707,8 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 		log.Println("[error]", msg)
 		return
 	}
+
+	log.Println("[Info]token:", token)
 
 	userName = tokenMap[token]
 	if userName == "" {
@@ -799,7 +801,10 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 	record.Scores = uint(value)
 
 	record.Records = r.PostFormValue("records")
+	log.Println("[Info]records:", record.Records)
+
 	recordSum := r.PostFormValue("recordSum")
+	log.Println("[Info]recordSum:", recordSum)
 
 	sumStr := totalScoresStr + record.Records + user.PasswordSum
 
@@ -821,14 +826,16 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 
 	recordmanager.GetInstance().AddRecord(record)
 
-	isDouble = enemyInfo.isDouble
+	isDouble = int(enemyInfo.isDouble)
 	enemyName = enemyInfo.name
 	enemyScores = enemyInfo.scores
-	isWin = record.Scores > enemyInfo.scores
+	if record.Scores > enemyInfo.scores {
+		isWin = 1
+	}
 	goldUpLimit := config["GoldUpLimit"]["value"].Uint(1)
 	diamondUpLimit := config["DiamondUpLimit"]["value"].Uint(1)
 
-	if isWin {
+	if isWin != 0 {
 		switch costType {
 		case goldCostType:
 			user.GoldWinAmount++
@@ -892,6 +899,7 @@ func handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 func Init(synChannel chan int) {
 	synChan = synChannel
 	tokenMap = make(map[string]string)
+	enemyMap = make(map[uint64]*enemyInfo)
 
 	http.HandleFunc("/regist", handleRegist)
 	http.HandleFunc("/login", handleLogin)
