@@ -437,7 +437,12 @@ func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
 		if info == nil {
 			info = new(enemyInfo)
 		}
-		responseStr := fmt.Sprintf("{\"result\":%d, \"enemyName\":\"%s\", \"enemyRoleId\":%d, \"enemyMountId\":%d, \"enemyWeaponId\":%d, \"enemyEquipmentId\":%d, \"enemyPetId\":%d, \"records\":\"%s\", \"scores\":%d , \"goldCount\":%d, \"diamondCount\":%d,  \"isRobot\":%d, \"msg\":\"%s\"}",
+
+		if info.records == "" {
+			info.records = "null"
+		}
+
+		responseStr := fmt.Sprintf("{\"result\":%d, \"enemyName\":\"%s\", \"enemyRoleId\":%d, \"enemyMountId\":%d, \"enemyWeaponId\":%d, \"enemyEquipmentId\":%d, \"enemyPetId\":%d, \"records\":%s, \"scores\":%d , \"goldCount\":%d, \"diamondCount\":%d,  \"isRobot\":%d, \"msg\":\"%s\"}",
 			result, info.name, info.roleId, info.mountId, info.weaponId, info.equipmentId,
 			info.petId, info.records, info.scores, goldCount, diamondCount, info.isRobot, msg)
 		log.Println("[response]", responseStr)
@@ -458,6 +463,8 @@ func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
 		log.Println("[error]", msg)
 		return
 	}
+
+	log.Println("[info]type", costTypeStr)
 
 	isDoubleStr := r.FormValue("isDouble")
 	isDouble, err := strconv.ParseInt(isDoubleStr, 10, 8)
@@ -540,19 +547,16 @@ func getEnemyData(scores uint, fix int, costType int) (*enemyInfo, error) {
 		return nil, err
 	}
 
-	configLen := len(nameConfig)
-	name := ""
-	if configLen == 0 {
-		name = "Guest"
-	} else {
-		idStr := strconv.FormatInt(int64(1+rand.Int()%configLen), 10)
-		name = nameConfig[strconv.FormatInt(int64(1+rand.Int()%configLen), 10)]["name"].Str()
-		println("idStr:", idStr, " name:", name)
-	}
-
 	record, err := recordmanager.GetInstance().GetRecord(uint(scores), fix, int(costType))
 	if err != nil {
 		if err == recordmanager.ErrUserNotFound {
+			configLen := len(nameConfig)
+			name := ""
+			if configLen == 0 {
+				name = "Guest"
+			} else {
+				name = nameConfig[strconv.FormatInt(int64(1+rand.Int()%configLen), 10)]["name"].Str()
+			}
 			zoneLen := config["ZoneRange"]["value"].Uint(1)
 
 			scores = scores*zoneLen/zoneLen + uint(rand.Uint32()%uint32(zoneLen))
@@ -824,7 +828,12 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 
 	record.TotalDay = getTotalDay()
 
-	recordmanager.GetInstance().AddRecord(record)
+	err = recordmanager.GetInstance().AddRecord(record)
+	if err != nil {
+		msg = err.Error()
+		log.Println("[error]", msg)
+		return
+	}
 
 	isDouble = int(enemyInfo.isDouble)
 	enemyName = enemyInfo.name

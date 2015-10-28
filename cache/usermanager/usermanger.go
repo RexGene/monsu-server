@@ -153,6 +153,42 @@ func (this *UserManager) UpdateUserToDB() {
 		fields = append(fields, field)
 
 		field = &sqlproxy.FieldData{
+			Name:  "gold_rank",
+			Value: strconv.FormatUint(uint64(user.GoldRank), 10),
+		}
+		fields = append(fields, field)
+
+		field = &sqlproxy.FieldData{
+			Name:  "diamond_rank",
+			Value: strconv.FormatUint(uint64(user.DiamondRank), 10),
+		}
+		fields = append(fields, field)
+
+		field = &sqlproxy.FieldData{
+			Name:  "diamond_win_amount",
+			Value: strconv.FormatUint(uint64(user.DiamondWinAmount), 10),
+		}
+		fields = append(fields, field)
+
+		field = &sqlproxy.FieldData{
+			Name:  "diamond_lose_amount",
+			Value: strconv.FormatUint(uint64(user.DiamondLoseAmount), 10),
+		}
+		fields = append(fields, field)
+
+		field = &sqlproxy.FieldData{
+			Name:  "gold_win_amount",
+			Value: strconv.FormatUint(uint64(user.GoldWinAmount), 10),
+		}
+		fields = append(fields, field)
+
+		field = &sqlproxy.FieldData{
+			Name:  "gold_lose_amount",
+			Value: strconv.FormatUint(uint64(user.GoldLoseAmount), 10),
+		}
+		fields = append(fields, field)
+
+		field = &sqlproxy.FieldData{
 			Name:  "diamond_available_buy_count",
 			Value: strconv.FormatUint(uint64(user.DiamondAvailableBuyCount), 10),
 		}

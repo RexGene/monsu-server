@@ -4,6 +4,7 @@ import (
 	"../configmanager"
 	"errors"
 	"github.com/RexGene/sqlproxy"
+	"log"
 	"math/rand"
 	"strconv"
 )
@@ -69,6 +70,8 @@ func newInstance() *RecordManager {
 		cmdEventList:      make([]*Record, 0, defaultEventListSize),
 		zoneRecords:       make(map[uint][]*Record),
 		diamonZoneRecords: make(map[uint][]*Record),
+		userRecords:       make(map[uint64][]*Record),
+		diamonUserRecords: make(map[uint64][]*Record),
 	}
 }
 
@@ -105,12 +108,26 @@ func (this *RecordManager) AddRecord(cmd *Record) error {
 		return err
 	}
 
+	zoneConfig, err := configmanager.GetInstance().GetConfig("config/zone.csv")
+	if err != nil {
+		return err
+	}
+
+	if len(zoneConfig) == 0 {
+		return errors.New("zone config data empty")
+	}
+
 	this.cmdEventList = append(this.cmdEventList, cmd)
 	zoneLen := config["ZoneRange"]["value"].Uint(1)
-	index := cmd.Scores / zoneLen
-	if index >= zoneLen {
-		index = zoneLen - 1
+	zoneMax := uint(len(zoneConfig) - 1)
+	i := cmd.Scores / zoneLen
+	if i > zoneMax {
+		i = zoneMax
 	}
+	key := strconv.FormatUint(uint64(i), 10)
+	index := zoneConfig[key]["level"].Uint(0)
+
+	log.Println("add record index:", index, " type:", cmd.Type)
 
 	var zoneRecords map[uint][]*Record
 	var userRecords map[uint64][]*Record
@@ -144,8 +161,24 @@ func (this *RecordManager) GetRecord(scores uint, fix int, t int) (*Record, erro
 	if err != nil {
 		return nil, err
 	}
+
+	zoneConfig, err := configmanager.GetInstance().GetConfig("config/zone.csv")
+	if err != nil {
+		return nil, err
+	}
+
+	if len(zoneConfig) == 0 {
+		return nil, errors.New("zone config data empty")
+	}
+
 	zoneLen := config["ZoneRange"]["value"].Uint(1)
-	index := scores / zoneLen
+	zoneMax := uint(len(zoneConfig) - 1)
+	i := scores / zoneLen
+	if i > zoneMax {
+		i = zoneMax
+	}
+	key := strconv.FormatUint(uint64(i), 10)
+	index := zoneConfig[key]["level"].Uint(0)
 
 	if fix < 0 {
 		value := uint(-fix)
@@ -160,10 +193,6 @@ func (this *RecordManager) GetRecord(scores uint, fix int, t int) (*Record, erro
 		index += value
 	}
 
-	if index >= zoneLen {
-		index = zoneLen - 1
-	}
-
 	var zoneRecords map[uint][]*Record
 	if t == goldType {
 		zoneRecords = this.zoneRecords
@@ -174,6 +203,8 @@ func (this *RecordManager) GetRecord(scores uint, fix int, t int) (*Record, erro
 	}
 
 	list := zoneRecords[index]
+	log.Println("read record index:", index, " type:", t)
+
 	if list == nil {
 		return nil, ErrUserNotFound
 	} else {
@@ -283,6 +314,15 @@ func (this *RecordManager) LoadData() error {
 		return err
 	}
 
+	zoneConfig, err := configmanager.GetInstance().GetConfig("config/zone.csv")
+	if err != nil {
+		return err
+	}
+
+	if len(zoneConfig) == 0 {
+		return errors.New("zone config data empty")
+	}
+
 	fieldNames := make([]string, 0, 16)
 	fieldNames = append(fieldNames, "user_name")
 	fieldNames = append(fieldNames, "role_id")
@@ -368,10 +408,13 @@ func (this *RecordManager) LoadData() error {
 		record.Scores = uint(value)
 
 		zoneLen := config["ZoneRange"]["value"].Uint(1)
-		index := record.Scores / zoneLen
-		if index >= zoneLen {
-			index = zoneLen - 1
+		zoneMax := uint(len(zoneConfig) - 1)
+		i := record.Scores / zoneLen
+		if i > zoneMax {
+			i = zoneMax
 		}
+		key := strconv.FormatUint(uint64(i), 10)
+		index := zoneConfig[key]["level"].Uint(0)
 
 		var zoneRecords map[uint][]*Record
 		if record.Type == goldType {
