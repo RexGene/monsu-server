@@ -3,13 +3,13 @@ key,value,desc
 MinRoleId,1,
 RoleIdRange,4,
 MinPetId,1,
-PetIdRange,30,
+PetIdRange,20,
 MinMountId,1,
 MountIdRange,9,
 MinWeaponId,1,
 WeaponIdRange,9,
 MinEquiptmentId,1,
-EquiptmentRange,30,
+EquiptmentRange,20,
 ZoneRange,1000,区间跨度
 DefaultRank,5000,默认分数段
 DefaultGoldCount,5,默认金币挑战次数
