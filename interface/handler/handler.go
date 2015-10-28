@@ -175,7 +175,8 @@ func calcLastDayRank(uuid uint64, t int) (rank int, err error) {
 		sort.Sort(sort.Reverse(recordmanager.RecordSlice(s)))
 
 		for _, v := range s {
-			fmt.Printf("%v", v)
+			log.Println("sort result")
+			log.Printf("%v\n", v)
 		}
 
 		total := uint(0)
@@ -368,7 +369,14 @@ func handleChangeUserName(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(responseStr))
 	}()
 
-	userName := r.FormValue("userName")
+	token := r.FormValue("token")
+	if !isStringValid(token) {
+		msg = "token invalid"
+		log.Println("[error]", msg)
+		return
+	}
+
+	userName := tokenMap[token]
 	if !isStringValid(userName) {
 		msg = "userName invalid"
 		log.Println("[error]", msg)
@@ -382,23 +390,10 @@ func handleChangeUserName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.FormValue("token")
-	if !isStringValid(token) {
-		msg = "token invalid"
-		log.Println("[error]", msg)
-		return
-	}
-
 	userManager := usermanager.GetInstance()
 	user, err := userManager.GetUser(userName)
 	if err != nil {
 		msg = err.Error()
-		log.Println("[error]", msg)
-		return
-	}
-
-	if token != user.Token {
-		msg = "token not match"
 		log.Println("[error]", msg)
 		return
 	}
@@ -497,7 +492,7 @@ func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		info, err = getEnemyData(user.GoldRank, user.FixLevel, int(costType))
+		info, err = getEnemyData(user.GoldRank, user.FixLevel, int(costType), user.Uuid)
 		if err != nil {
 			msg = err.Error()
 			log.Println("[error]", msg)
@@ -514,7 +509,7 @@ func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		info, err = getEnemyData(user.DiamondRank, user.DiamondFixLevel, int(costType))
+		info, err = getEnemyData(user.DiamondRank, user.DiamondFixLevel, int(costType), user.Uuid)
 		if err != nil {
 			msg = err.Error()
 			log.Println("[error]", msg)
@@ -536,7 +531,7 @@ func handleFindEnemy(w http.ResponseWriter, r *http.Request) {
 	result = 1
 }
 
-func getEnemyData(scores uint, fix int, costType int) (*enemyInfo, error) {
+func getEnemyData(scores uint, fix int, costType int, uuid uint64) (*enemyInfo, error) {
 	config, err := configmanager.GetInstance().GetConfig("config/const.csv")
 	if err != nil {
 		return nil, err
@@ -547,7 +542,7 @@ func getEnemyData(scores uint, fix int, costType int) (*enemyInfo, error) {
 		return nil, err
 	}
 
-	record, err := recordmanager.GetInstance().GetRecord(uint(scores), fix, int(costType))
+	record, err := recordmanager.GetInstance().GetRecord(uint(scores), fix, int(costType), uuid)
 	if err != nil {
 		if err == recordmanager.ErrUserNotFound {
 			configLen := len(nameConfig)
@@ -863,12 +858,20 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 		case goldCostType:
 			user.GoldLoseAmount++
 			if user.GoldWinAmount < goldUpLimit {
-				user.FixLevel--
+				rate := uint32(config["GoldLessRate"]["value"].Uint(0))
+				log.Println("GoldLessRate:", rate)
+				if rate > rand.Uint32()%100 {
+					user.FixLevel--
+				}
 			}
 		case diamondCostType:
 			user.DiamondLoseAmount++
 			if user.DiamondWinAmount < diamondUpLimit {
-				user.DiamondFixLevel--
+				rate := uint32(config["DiamondLessRate"]["value"].Uint(0))
+				log.Println("DiamondLessRate:", rate)
+				if rate > rand.Uint32()%100 {
+					user.DiamondFixLevel--
+				}
 			}
 		}
 	}
