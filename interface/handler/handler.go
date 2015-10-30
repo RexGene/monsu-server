@@ -112,12 +112,12 @@ func getOldRank(t int, user *usermanager.User, rank *int, err *error) {
 
 	if t == goldCostType {
 		*rank = int(user.GoldRank)
-		if *rank == 0 {
+		if *rank < defaultRank {
 			*rank = defaultRank
 		}
 	} else if t == diamondCostType {
 		*rank = int(user.DiamondRank)
-		if *rank == 0 {
+		if *rank < defaultRank {
 			*rank = defaultRank
 		}
 	} else {
@@ -135,6 +135,8 @@ func calcLastDayRank(uuid uint64, t int) (rank int, err error) {
 	if err != nil {
 		return
 	}
+
+	defaultRank := config["DefaultRank"]["value"].Int(defaultRank)
 
 	recordLen := len(records)
 	if recordLen == 0 {
@@ -194,6 +196,10 @@ func calcLastDayRank(uuid uint64, t int) (rank int, err error) {
 	} else {
 		//not exist
 		getOldRank(t, user, &rank, &err)
+	}
+
+	if rank < defaultRank {
+		rank = defaultRank
 	}
 
 	return
@@ -405,6 +411,7 @@ func handleChangeUserName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tokenMap[token] = newUserName
 	result = 1
 
 	userManager.MarkUserChange(user.UserName)
@@ -552,9 +559,34 @@ func getEnemyData(scores uint, fix int, costType int, uuid uint64) (*enemyInfo, 
 			} else {
 				name = nameConfig[strconv.FormatInt(int64(1+rand.Int()%configLen), 10)]["name"].Str()
 			}
-			zoneLen := config["ZoneRange"]["value"].Uint(1)
 
-			scores = scores*zoneLen/zoneLen + uint(rand.Uint32()%uint32(zoneLen))
+			index := uint(0)
+			zoneLen := config["ZoneRange"]["value"].Uint(1)
+			if fix < 0 {
+				maxLessLevel := config["MaxLessLevel"]["value"].Uint(1)
+				value := uint(-fix)
+				if value > maxLessLevel {
+					value = maxLessLevel
+				}
+
+				if index > value {
+					index -= value
+				} else {
+					index = 1
+				}
+
+			} else if fix > 0 {
+				value := uint32(config["MaxUpLevel"]["value"].Uint(1))
+				index += uint(value)
+			}
+
+			scores = scores*zoneLen/zoneLen + index*zoneLen
+			defaultRank := config["DefaultRank"]["value"].Uint(defaultRank)
+			if scores < defaultRank {
+				scores = defaultRank
+			}
+
+			ex := uint(rand.Uint32() % uint32(zoneLen))
 
 			enemyInfo := &enemyInfo{
 				name: name,
@@ -569,7 +601,7 @@ func getEnemyData(scores uint, fix int, costType int, uuid uint64) (*enemyInfo, 
 				equipmentId: config["MinEquiptmentId"]["value"].Uint(0) +
 					uint(rand.Uint32())%config["EquiptmentRange"]["value"].Uint(1),
 				isRobot: 1,
-				scores:  scores,
+				scores:  scores + ex,
 				records: "",
 			}
 
@@ -682,7 +714,7 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 	isDouble := 0
 	userName := ""
 	enemyName := ""
-	scores := 0
+	scores := uint(0)
 	enemyScores := uint(0)
 	isWin := 0
 
@@ -798,6 +830,7 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 	}
 
 	record.Scores = uint(value)
+	scores = record.Scores
 
 	record.Records = r.PostFormValue("records")
 	log.Println("[Info]records:", record.Records)

@@ -83,6 +83,20 @@ func GetInstance() *RecordManager {
 	return instance
 }
 
+func shuffle(list []*Record) {
+	size := len(list)
+	if size == 0 {
+		return
+	}
+
+	index := rand.Int() % size
+	temp := list[0]
+	list[0] = list[index]
+	list[index] = temp
+
+	shuffle(list[1:])
+}
+
 func (this *RecordManager) GetUserRecords(uuid uint64, t int) ([]*Record, error) {
 	var recordsMap map[uint64][]*Record
 	switch t {
@@ -156,7 +170,7 @@ func (this *RecordManager) AddRecord(cmd *Record) error {
 	return nil
 }
 
-func (this *RecordManager) GetRecord(scores uint, fix int, t int) (*Record, error) {
+func (this *RecordManager) GetRecord(scores uint, fix int, t int, uuid uint64) (*Record, error) {
 	config, err := configmanager.GetInstance().GetConfig("config/const.csv")
 	if err != nil {
 		return nil, err
@@ -178,19 +192,36 @@ func (this *RecordManager) GetRecord(scores uint, fix int, t int) (*Record, erro
 		i = zoneMax
 	}
 	key := strconv.FormatUint(uint64(i), 10)
-	index := zoneConfig[key]["level"].Uint(0)
+	index := zoneConfig[key]["level"].Uint(1)
+	if index == 0 {
+		index = 1
+	}
 
 	if fix < 0 {
+		maxLessLevel := config["MaxLessLevel"]["value"].Uint(1)
 		value := uint(-fix)
-		if index >= value {
+		if value > maxLessLevel {
+			value = maxLessLevel
+		}
+
+		if index > value {
 			index -= value
 		} else {
-			index = 0
+			index = 1
 		}
 
 	} else if fix > 0 {
-		value := uint(fix)
-		index += value
+		maxUpLevel := uint32(config["MaxUpLevel"]["value"].Uint(1))
+		value := uint32(fix)
+		if value > maxUpLevel {
+			value = maxUpLevel
+		}
+
+		diff := maxUpLevel - value + 1
+		value = value + rand.Uint32()%uint32(diff)
+
+		log.Println("random base:", value, " random range:", diff)
+		index += uint(value)
 	}
 
 	var zoneRecords map[uint][]*Record
@@ -208,7 +239,14 @@ func (this *RecordManager) GetRecord(scores uint, fix int, t int) (*Record, erro
 	if list == nil {
 		return nil, ErrUserNotFound
 	} else {
-		return list[rand.Int()%len(list)], nil
+		shuffle(list)
+		for _, r := range list {
+			if r.Uuid != uuid {
+				return r, nil
+			}
+		}
+
+		return nil, ErrUserNotFound
 	}
 }
 

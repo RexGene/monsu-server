@@ -27,7 +27,7 @@ func initData() {
 func handleCmd() {
 	for {
 		select {
-		case <-time.After(time.Minute * 10):
+		case <-time.After(time.Minute * 1):
 			updateDB()
 		}
 	}
