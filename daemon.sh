@@ -18,7 +18,7 @@ do
           time=$(date +%Y-%m-%d_%H-%M-%S)
 
 
-          mv "log" "log_backup/$time.log   "
+          mv "log" "log_backup/$time.log"
         fi
     
         ./start.sh
