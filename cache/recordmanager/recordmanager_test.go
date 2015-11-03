@@ -29,7 +29,7 @@ func TestAddRecord(t *testing.T) {
 		RoleId:      1,
 		PetId:       2,
 		MountId:     4,
-		WeapinId:    5,
+		WeaponId:    5,
 		EquipmentId: 6,
 		Scores:      77777,
 		Records:     "{}",
@@ -51,10 +51,22 @@ func TestGetRecord(t *testing.T) {
 		return
 	}
 
-	_, err = recordManager.GetRecord(77777, 0, 1)
+	_, err = recordManager.GetRecord(77777, 0, 1, 2)
 	if err != nil {
 		t.Log(err)
 		t.Fail()
 		return
 	}
+}
+
+func TestGetScoresByLevel(t *testing.T) {
+	recordManager := GetInstance()
+	scores, err := recordManager.GetScoresByLevel(2)
+	if err != nil {
+		t.Log(err)
+		t.Fail()
+		return
+	}
+
+	println("scores:", scores)
 }

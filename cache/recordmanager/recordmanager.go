@@ -63,6 +63,8 @@ type RecordManager struct {
 	diamonZoneRecords map[uint][]*Record
 	userRecords       map[uint64][]*Record
 	diamonUserRecords map[uint64][]*Record
+	maxLevel          int
+	levelMap          map[int][]uint
 }
 
 func newInstance() *RecordManager {
@@ -72,12 +74,77 @@ func newInstance() *RecordManager {
 		diamonZoneRecords: make(map[uint][]*Record),
 		userRecords:       make(map[uint64][]*Record),
 		diamonUserRecords: make(map[uint64][]*Record),
+		levelMap:          make(map[int][]uint),
+		maxLevel:          0,
 	}
+}
+
+func (this *RecordManager) initZoneConfigData() error {
+	zoneConfig, err := configmanager.GetInstance().GetConfig("config/zone.csv")
+	if err != nil {
+		return err
+	}
+
+	config, err := configmanager.GetInstance().GetConfig("config/const.csv")
+	if err != nil {
+		return err
+	}
+
+	zoneLen := config["ZoneRange"]["value"].Uint(1)
+
+	maxLevel := 0
+	for index, value := range zoneConfig {
+		indexValue, err := strconv.ParseUint(index, 10, 32)
+		if err != nil {
+			return err
+		}
+
+		scores := uint(indexValue) * zoneLen
+		level := value["level"].Int(1)
+		if maxLevel < level {
+			maxLevel = level
+		}
+
+		list := this.levelMap[level]
+		if list == nil {
+			list = make([]uint, 0, 32)
+			this.levelMap[level] = list
+		}
+
+		this.levelMap[level] = append(list, scores)
+	}
+
+	this.maxLevel = maxLevel
+
+	return nil
+}
+
+func (this *RecordManager) GetScoresByLevel(level int) (uint, error) {
+	list := this.levelMap[level]
+	if list == nil {
+		err := errors.New("level not found:" + strconv.FormatInt(int64(level), 10))
+		log.Println("[Error]", err)
+		return 0, err
+	}
+
+	listLen := len(list)
+	if listLen == 0 {
+		err := errors.New("list is empty")
+		log.Println("[Error]", err)
+		return 0, err
+	}
+
+	return list[rand.Int()%len(list)], nil
+
 }
 
 func GetInstance() *RecordManager {
 	if instance == nil {
 		instance = newInstance()
+		err := instance.initZoneConfigData()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	return instance
@@ -170,19 +237,29 @@ func (this *RecordManager) AddRecord(cmd *Record) error {
 	return nil
 }
 
-func (this *RecordManager) GetRecord(scores uint, fix int, t int, uuid uint64) (*Record, error) {
-	config, err := configmanager.GetInstance().GetConfig("config/const.csv")
+func (this *RecordManager) GetIndex(scores uint, fix int) (int, error) {
+	configManager := configmanager.GetInstance()
+	config, err := configManager.GetConfig("config/const.csv")
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	zoneConfig, err := configmanager.GetInstance().GetConfig("config/zone.csv")
+	zoneConfig, err := configManager.GetConfig("config/zone.csv")
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	if len(zoneConfig) == 0 {
-		return nil, errors.New("zone config data empty")
+		return 0, errors.New("zone config data empty")
+	}
+
+	zoneRangeConfig, err := configManager.GetConfig("config/zoneRange.csv")
+	if err != nil {
+		return 0, err
+	}
+
+	if len(zoneRangeConfig) == 0 {
+		return 0, errors.New("zone range config empty")
 	}
 
 	zoneLen := config["ZoneRange"]["value"].Uint(1)
@@ -191,37 +268,57 @@ func (this *RecordManager) GetRecord(scores uint, fix int, t int, uuid uint64) (
 	if i > zoneMax {
 		i = zoneMax
 	}
+
 	key := strconv.FormatUint(uint64(i), 10)
-	index := zoneConfig[key]["level"].Uint(1)
+	index := zoneConfig[key]["level"].Int(1)
 	if index == 0 {
 		index = 1
 	}
 
 	if fix < 0 {
-		maxLessLevel := config["MaxLessLevel"]["value"].Uint(1)
-		value := uint(-fix)
-		if value > maxLessLevel {
-			value = maxLessLevel
-		}
+		maxLevel := this.maxLevel
+		valueKey := strconv.FormatUint(uint64(-fix), 10)
+		rangeConfig := zoneRangeConfig[valueKey]
+		beginIndex := rangeConfig["LoseBeginIndex"].Int(1)
+		indexRange := rangeConfig["LoseIndexRange"].Int(1)
 
-		if index > value {
-			index -= value
-		} else {
+		value := beginIndex + rand.Int()%indexRange
+		log.Println("[Info]down random base:", beginIndex, " random range:", indexRange)
+
+		index += value
+		if index < 1 {
 			index = 1
+		} else if index > maxLevel {
+			index = maxLevel
 		}
 
 	} else if fix > 0 {
-		maxUpLevel := uint32(config["MaxUpLevel"]["value"].Uint(1))
-		value := uint32(fix)
-		if value > maxUpLevel {
-			value = maxUpLevel
+		maxLevel := config["MaxLevel"]["value"].Int(1)
+
+		valueKey := strconv.FormatUint(uint64(fix), 10)
+		rangeConfig := zoneRangeConfig[valueKey]
+		beginIndex := rangeConfig["WinBeginIndex"].Int(1)
+		indexRange := rangeConfig["WinIndexRange"].Int(1)
+
+		value := beginIndex + rand.Int()%indexRange
+
+		log.Println("[Info]up random base:", beginIndex, " random range:", indexRange)
+		index += value
+
+		if index < 1 {
+			index = 1
+		} else if index > maxLevel {
+			index = maxLevel
 		}
+	}
 
-		diff := maxUpLevel - value + 1
-		value = value + rand.Uint32()%uint32(diff)
+	return 0, nil
+}
 
-		log.Println("random base:", value, " random range:", diff)
-		index += uint(value)
+func (this *RecordManager) GetRecord(scores uint, fix int, t int, uuid uint64) (*Record, error) {
+	index, err := this.GetIndex(scores, fix)
+	if err != nil {
+		return nil, err
 	}
 
 	var zoneRecords map[uint][]*Record
@@ -233,7 +330,7 @@ func (this *RecordManager) GetRecord(scores uint, fix int, t int, uuid uint64) (
 		return nil, errors.New("unknow type:" + strconv.FormatInt(int64(t), 10))
 	}
 
-	list := zoneRecords[index]
+	list := zoneRecords[uint(index)]
 	log.Println("read record index:", index, " type:", t)
 
 	if list == nil {

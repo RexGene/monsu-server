@@ -560,27 +560,17 @@ func getEnemyData(scores uint, fix int, costType int, uuid uint64) (*enemyInfo, 
 				name = nameConfig[strconv.FormatInt(int64(1+rand.Int()%configLen), 10)]["name"].Str()
 			}
 
-			index := uint(0)
 			zoneLen := config["ZoneRange"]["value"].Uint(1)
-			if fix < 0 {
-				maxLessLevel := config["MaxLessLevel"]["value"].Uint(1)
-				value := uint(-fix)
-				if value > maxLessLevel {
-					value = maxLessLevel
-				}
-
-				if index > value {
-					index -= value
-				} else {
-					index = 1
-				}
-
-			} else if fix > 0 {
-				value := uint32(config["MaxUpLevel"]["value"].Uint(1))
-				index += uint(value)
+			index, err := recordmanager.GetInstance().GetIndex(uint(scores), fix)
+			if err != nil {
+				return nil, err
 			}
 
-			scores = scores*zoneLen/zoneLen + index*zoneLen
+			scores, err = recordmanager.GetInstance().GetScoresByLevel(int(index))
+			if err != nil {
+				return nil, err
+			}
+
 			defaultRank := config["DefaultRank"]["value"].Uint(defaultRank)
 			if scores < defaultRank {
 				scores = defaultRank
@@ -877,11 +867,19 @@ func handleUploadRecord(w http.ResponseWriter, r *http.Request) {
 		case goldCostType:
 			user.GoldWinAmount++
 			if user.GoldWinAmount >= goldUpLimit {
+				if user.FixLevel < 0 {
+					user.FixLevel = 0
+				}
+
 				user.FixLevel++
 			}
 		case diamondCostType:
 			user.DiamondWinAmount++
 			if user.DiamondWinAmount >= diamondUpLimit {
+				if user.DiamondFixLevel < 0 {
+					user.DiamondFixLevel = 0
+				}
+
 				user.DiamondFixLevel++
 			}
 		}
