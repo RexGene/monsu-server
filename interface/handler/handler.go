@@ -5,11 +5,15 @@ import (
 	"../../cache/recordmanager"
 	"../../cache/usermanager"
 	"crypto/md5"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -30,6 +34,12 @@ const (
 	defualtLimit     = 3
 	defaultAvgAmount = 4
 )
+
+type JsonInfo struct {
+	Id         string
+	Error_Code string
+	Error      string
+}
 
 var synChan chan int
 var tokenMap map[string]string
@@ -216,7 +226,7 @@ func isStringValid(str string) bool {
 	}
 
 	for _, c := range str {
-		if (c < '0' || c > '9') && (c < 'a' || c > 'z') && c != '_' && c != '-' && c < 128 {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'z') && c != '_' && c != '-' && c != '=' && c != '/' && c != '+' && c < 128 {
 			return false
 		}
 	}
@@ -939,6 +949,143 @@ func handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 	configmanager.GetInstance().Clear()
 }
 
+func handleGetCloudSaveFile(w http.ResponseWriter, r *http.Request) {
+	log.Println("[request]", r.URL)
+	synChan <- 1
+	defer func() { <-synChan }()
+
+	msg := "success"
+	result := 0
+	data := ""
+
+	defer func() {
+		responseStr := fmt.Sprintf("{\"result\":%d, \"data\":\"%s\", \"msg\":\"%s\"}", result, data, msg)
+		log.Println("[response]", responseStr)
+		w.Write([]byte(responseStr))
+	}()
+
+	token := r.FormValue("tpToken")
+	if !isStringValid(token) {
+		msg = "tp token invalid:" + token
+		log.Println("[error]", msg)
+		return
+	}
+
+	request := fmt.Sprintf("https://openapi.360.cn/user/me.json?access_token=%s&fields=id", token)
+	resp, err := http.Get(request)
+	if err != nil {
+		msg = err.Error()
+		log.Println("[error]", msg)
+		return
+	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		msg = err.Error()
+		log.Println("[error]", msg)
+		return
+	}
+
+	jsonInfo := new(JsonInfo)
+	json.Unmarshal(body, jsonInfo)
+
+	id := jsonInfo.Id
+	if jsonInfo.Error_Code != "" {
+		msg = jsonInfo.Error
+		log.Println("[error]", msg)
+		return
+	}
+
+	fileInfo, err := ioutil.ReadFile("saveFiles/" + id)
+	if err != nil {
+		msg = err.Error()
+		log.Println("[error]", msg)
+		return
+	}
+
+	data = base64.StdEncoding.EncodeToString(fileInfo)
+	if err != nil {
+		msg = err.Error()
+		log.Println("[error]", msg)
+		return
+	}
+
+	result = 1
+}
+
+func handleUploadSaveFile(w http.ResponseWriter, r *http.Request) {
+	log.Println("[request]", r.URL)
+	synChan <- 1
+	defer func() { <-synChan }()
+
+	msg := "success"
+	result := 0
+
+	defer func() {
+		responseStr := fmt.Sprintf("{\"result\":%d,\"msg\":\"%s\"}", result, msg)
+		log.Println("[response]", responseStr)
+		w.Write([]byte(responseStr))
+	}()
+
+	token := r.PostFormValue("tpToken")
+	if !isStringValid(token) {
+		msg = "tp token invalid:" + token
+		log.Println("[error]", msg)
+		return
+	}
+
+	dataStr := r.PostFormValue("data")
+	if !isStringValid(token) {
+		msg = "data invalid:" + dataStr
+		log.Println("[error]", msg)
+		return
+	}
+
+	request := fmt.Sprintf("https://openapi.360.cn/user/me.json?access_token=%s&fields=id", token)
+	resp, err := http.Get(request)
+	if err != nil {
+		msg = err.Error()
+		log.Println("[error]", msg)
+		return
+	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		msg = err.Error()
+		log.Println("[error]", msg)
+		return
+	}
+
+	println(body)
+	jsonInfo := new(JsonInfo)
+	json.Unmarshal([]byte(body), jsonInfo)
+
+	id := jsonInfo.Id
+	if jsonInfo.Error_Code != "" {
+		msg = jsonInfo.Error
+		log.Println("[error]", msg)
+		return
+	}
+
+	data, err := base64.StdEncoding.DecodeString(dataStr)
+	if err != nil {
+		msg = err.Error()
+		log.Println("[error]", msg)
+		return
+	}
+
+	err = ioutil.WriteFile("saveFiles/"+id, data, os.ModePerm)
+	if err != nil {
+		msg = err.Error()
+		log.Println("[error]", msg)
+		return
+	}
+
+	result = 1
+}
+
 func Init(synChannel chan int) {
 	synChan = synChannel
 	tokenMap = make(map[string]string)
@@ -952,6 +1099,8 @@ func Init(synChannel chan int) {
 	http.HandleFunc("/findEnemy", handleFindEnemy)
 	http.HandleFunc("/buyBattleAmount", handleBuyBattleAmount)
 	http.HandleFunc("/updateConfig", handleUpdateConfig)
+	http.HandleFunc("/getCloudSaveFile", handleGetCloudSaveFile)
+	http.HandleFunc("/uploadSaveFile", handleUploadSaveFile)
 
 	log.Fatal(http.ListenAndServe(":14000", nil))
 }
