@@ -221,7 +221,7 @@ func isStringValid(str string) bool {
 
 	strlen := len(str)
 
-	if strlen == 0 || strlen > 32 {
+	if strlen == 0 || strlen > 64 {
 		return false
 	}
 
