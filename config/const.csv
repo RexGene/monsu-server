@@ -22,6 +22,6 @@ GoldUpLimit,2,金币挑战升区次数
 DiamondUpLimit,2,钻石挑战升区次数
 GoldLessRate,80,金币下降概率
 DiamondLessRate,80,钻石下降概率
-MaxLessLevel,2,最大下降等级
-MaxUpLevel,4,最大提升等级
+MaxLessLevel,6,最大下降等级
+MaxUpLevel,33,最大提升等级
 MaxLevel,50,最大等级
