@@ -972,6 +972,7 @@ func handleGetCloudSaveFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	request := fmt.Sprintf("https://openapi.360.cn/user/me.json?access_token=%s&fields=id", token)
+	log.Println("[info]", request)
 	resp, err := http.Get(request)
 	if err != nil {
 		msg = err.Error()
@@ -1039,6 +1040,7 @@ func handleUploadSaveFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	request := fmt.Sprintf("https://openapi.360.cn/user/me.json?access_token=%s&fields=id", token)
+	log.Println("[info]", request)
 	resp, err := http.Get(request)
 	if err != nil {
 		msg = err.Error()
