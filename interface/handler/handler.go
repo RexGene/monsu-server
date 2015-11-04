@@ -998,17 +998,13 @@ func handleGetCloudSaveFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fileInfo, err := ioutil.ReadFile("saveFiles/" + id)
-	if err != nil {
-		msg = err.Error()
-		log.Println("[error]", msg)
-		return
-	}
-
-	data = base64.StdEncoding.EncodeToString(fileInfo)
-	if err != nil {
-		msg = err.Error()
-		log.Println("[error]", msg)
-		return
+	if err == nil {
+		data = base64.StdEncoding.EncodeToString(fileInfo)
+		if err != nil {
+			msg = err.Error()
+			log.Println("[error]", msg)
+			return
+		}
 	}
 
 	result = 1
