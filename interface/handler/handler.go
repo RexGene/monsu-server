@@ -108,7 +108,7 @@ func checkUserUpdate(uuid uint64) (bool, error) {
 }
 
 func getTotalDay() int64 {
-	return (time.Now().Unix() - 3600*8) / 86400
+	return (time.Now().Unix() + 3600*8) / 86400
 }
 
 func getOldRank(t int, user *usermanager.User, rank *int, err *error) {
