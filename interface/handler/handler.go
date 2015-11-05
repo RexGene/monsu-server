@@ -74,21 +74,19 @@ func checkUserUpdate(uuid uint64) (bool, error) {
 
 	//reset user data
 	if user.LastUpdateDay != totalDay {
-		user.GoldCount = uint8(config["DefaultGoldCount"]["value"].Uint(5))
-		user.DiamondCount = uint8(config["DefaultDiamondCount"]["value"].Uint(5))
-
 		goldRank, err := calcLastDayRank(uuid, goldCostType)
 		if err != nil {
 			return false, err
 		}
-
-		user.GoldRank = uint(goldRank)
 
 		diamondRank, err := calcLastDayRank(uuid, diamondCostType)
 		if err != nil {
 			return false, err
 		}
 
+		user.GoldCount = uint8(config["DefaultGoldCount"]["value"].Uint(5))
+		user.DiamondCount = uint8(config["DefaultDiamondCount"]["value"].Uint(5))
+		user.GoldRank = uint(goldRank)
 		user.DiamondRank = uint(diamondRank)
 		user.GoldWinAmount = 0
 		user.GoldLoseAmount = 0
@@ -365,7 +363,12 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		delete(tokenMap, user.Token)
 	}
 
-	checkUserUpdate(user.Uuid)
+	_, err = checkUserUpdate(user.Uuid)
+	if err != nil {
+		msg = err.Error()
+		log.Println("[error]", msg)
+		return
+	}
 
 	user.Token = sumHexStr
 	tokenMap[sumHexStr] = userName
