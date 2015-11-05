@@ -1119,6 +1119,7 @@ func Init(synChannel chan int) {
 	synChan = synChannel
 	tokenMap = make(map[string]string)
 	enemyMap = make(map[uint64]*enemyInfo)
+	orderMap = make(map[string]bool)
 
 	http.HandleFunc("/regist", handleRegist)
 	http.HandleFunc("/login", handleLogin)
@@ -1130,6 +1131,7 @@ func Init(synChannel chan int) {
 	http.HandleFunc("/getCloudSaveFile", handleGetCloudSaveFile)
 	http.HandleFunc("/uploadSaveFile", handleUploadSaveFile)
 	http.HandleFunc("/payCallback", handlePayCallback)
+	http.HandleFunc("/uploadRecord", handleUploadRecord)
 
 	log.Fatal(http.ListenAndServe(":14000", nil))
 }
