@@ -71,6 +71,7 @@ func checkUserUpdate(uuid uint64) (bool, error) {
 	}
 
 	totalDay := uint(getTotalDay())
+	log.Println("[debug]", "LastUpdateDay:", user.LastUpdateDay, "totalDay:", totalDay)
 
 	//reset user data
 	if user.LastUpdateDay != totalDay {
@@ -147,8 +148,13 @@ func calcLastDayRank(uuid uint64, t int) (rank int, err error) {
 
 	defaultRank := config["DefaultRank"]["value"].Int(defaultRank)
 
-	recordLen := len(records)
+	recordLen := 0
+	if records != nil {
+		recordLen = len(records)
+	}
+
 	if recordLen == 0 {
+		log.Println("[info]", "record len is 0")
 		rank = defaultRank
 		return
 	}
@@ -161,12 +167,14 @@ func calcLastDayRank(uuid uint64, t int) (rank int, err error) {
 
 	//sort
 	yesterday := today - 1
+	log.Println("[info]", "yesterday:", yesterday)
 
 	//find yesterday record range
 	beginIndex := notFound
 	endIndex := notFound
-	for i := recordLen - 1; i < 0; i-- {
+	for i := recordLen - 1; i >= 0; i-- {
 		totalDay := records[i].TotalDay
+		log.Println("[info]", "record total day:", totalDay)
 		if totalDay == yesterday {
 			if endIndex == notFound {
 				endIndex = i + 1
@@ -176,11 +184,12 @@ func calcLastDayRank(uuid uint64, t int) (rank int, err error) {
 		}
 	}
 
+	log.Println("[info]", "beginIndex:", beginIndex)
 	if beginIndex != notFound {
 		log.Println("[info]", "beginIndex:", beginIndex, " endIndex:", endIndex)
 		//yesterday exist
 		s := records[beginIndex:endIndex]
-		log.Println("[info]", "s len:", len(s))
+		log.Println("[info]", "record len:", len(s))
 		dl := config["DefualtLimit"]["value"].Int(defualtLimit)
 		log.Println("[Info]", "DefualtLimit:", dl)
 		if len(s) < config["DefualtLimit"]["value"].Int(defualtLimit) {
@@ -188,11 +197,6 @@ func calcLastDayRank(uuid uint64, t int) (rank int, err error) {
 		}
 
 		sort.Sort(sort.Reverse(recordmanager.RecordSlice(s)))
-
-		for _, v := range s {
-			log.Println("sort result")
-			log.Printf("%v\n", v)
-		}
 
 		total := uint(0)
 		size := config["DefaultAvgAmount"]["value"].Uint(defaultAvgAmount)

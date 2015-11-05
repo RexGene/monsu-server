@@ -176,8 +176,8 @@ func (this *RecordManager) GetUserRecords(uuid uint64, t int) ([]*Record, error)
 	}
 
 	result := recordsMap[uuid]
-	if result != nil {
-		return nil, errors.New("not found user")
+	if result == nil {
+		return nil, nil
 	}
 
 	return result, nil
@@ -552,10 +552,14 @@ func (this *RecordManager) LoadData() error {
 		index := zoneConfig[key]["level"].Uint(0)
 
 		var zoneRecords map[uint][]*Record
+		var userRecords map[uint64][]*Record
+
 		if record.Type == goldType {
 			zoneRecords = this.zoneRecords
+			userRecords = this.userRecords
 		} else if record.Type == diamondType {
 			zoneRecords = this.diamonZoneRecords
+			userRecords = this.diamonUserRecords
 		} else {
 			continue
 		}
@@ -565,6 +569,12 @@ func (this *RecordManager) LoadData() error {
 		}
 
 		zoneRecords[index] = append(zoneRecords[index], record)
+
+		uuid := record.Uuid
+		if userRecords[uuid] == nil {
+			userRecords[uuid] = make([]*Record, 0, defaultUserRecordSize)
+		}
+		userRecords[uuid] = append(userRecords[uuid], record)
 	}
 
 	this.sqlProxy = proxy
