@@ -1027,15 +1027,18 @@ func handlePayCallback(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(responseStr))
 	}()
 
-	orderStr := r.FormValue("")
+	orderStr := r.FormValue("order_id")
 	if !isStringValid(orderStr) {
-		log.Println("[error]", "order invalid")
+		responseStr = "order id invalid"
+		log.Println("[error]", responseStr)
 		return
 	}
 
 	if !orderMap[orderStr] {
 		orderMap[orderStr] = true
 		responseStr = "ok"
+	} else {
+		responseStr = "order id already recv"
 	}
 }
 
