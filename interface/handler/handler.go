@@ -178,8 +178,12 @@ func calcLastDayRank(uuid uint64, t int) (rank int, err error) {
 	}
 
 	if beginIndex != notFound {
+		log.Println("[info]", "beginIndex:", beginIndex, " endIndex:", endIndex)
 		//yesterday exist
 		s := records[beginIndex:endIndex]
+		log.Println("[info]", "s len:", len(s))
+		dl := config["DefualtLimit"]["value"].Int(defualtLimit)
+		log.Println("[Info]", "DefualtLimit:", dl)
 		if len(s) < config["DefualtLimit"]["value"].Int(defualtLimit) {
 			getOldRank(t, user, &rank, &err)
 		}
@@ -193,6 +197,7 @@ func calcLastDayRank(uuid uint64, t int) (rank int, err error) {
 
 		total := uint(0)
 		size := config["DefaultAvgAmount"]["value"].Uint(defaultAvgAmount)
+		log.Println("[info]", "DefaultAvgAmount:", size)
 		l := len(s)
 		if size > uint(l) {
 			size = uint(l)
@@ -1091,7 +1096,6 @@ func Init(synChannel chan int) {
 
 	http.HandleFunc("/regist", handleRegist)
 	http.HandleFunc("/login", handleLogin)
-	http.HandleFunc("/uploadRecord", handleUploadRecord)
 	http.HandleFunc("/getTime", handleGetTime)
 	http.HandleFunc("/changeUserName", handleChangeUserName)
 	http.HandleFunc("/findEnemy", handleFindEnemy)
