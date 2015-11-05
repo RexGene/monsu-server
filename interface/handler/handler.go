@@ -44,6 +44,7 @@ type JsonInfo struct {
 var synChan chan int
 var tokenMap map[string]string
 var enemyMap map[uint64]*enemyInfo
+var orderMap map[string]bool
 
 type enemyInfo struct {
 	name        string
@@ -1016,6 +1017,28 @@ func handleGetCloudSaveFile(w http.ResponseWriter, r *http.Request) {
 	result = 1
 }
 
+func handlePayCallback(w http.ResponseWriter, r *http.Request) {
+	log.Println("[request]", r.URL)
+	synChan <- 1
+	defer func() { <-synChan }()
+
+	responseStr := ""
+	defer func() {
+		w.Write([]byte(responseStr))
+	}()
+
+	orderStr := r.FormValue("")
+	if !isStringValid(orderStr) {
+		log.Println("[error]", "order invalid")
+		return
+	}
+
+	if !orderMap[orderStr] {
+		orderMap[orderStr] = true
+		responseStr = "ok"
+	}
+}
+
 func handleUploadSaveFile(w http.ResponseWriter, r *http.Request) {
 	log.Println("[request]", r.URL)
 	synChan <- 1
@@ -1103,6 +1126,7 @@ func Init(synChannel chan int) {
 	http.HandleFunc("/updateConfig", handleUpdateConfig)
 	http.HandleFunc("/getCloudSaveFile", handleGetCloudSaveFile)
 	http.HandleFunc("/uploadSaveFile", handleUploadSaveFile)
+	http.HandleFunc("/payCallback", handlePayCallback)
 
 	log.Fatal(http.ListenAndServe(":14000", nil))
 }
