@@ -13,7 +13,6 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -1105,7 +1104,6 @@ func handleUploadSaveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("[info]", "dataStr:", dataStr)
 	data, err := base64.StdEncoding.DecodeString(dataStr)
 	if err != nil {
 		msg = err.Error()
@@ -1113,7 +1111,7 @@ func handleUploadSaveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = ioutil.WriteFile("saveFiles/"+id, data, os.ModePerm)
+	err = ioutil.WriteFile("saveFiles/"+id, data, 0766)
 	if err != nil {
 		msg = err.Error()
 		log.Println("[error]", msg)
