@@ -1071,7 +1071,8 @@ func handleUploadSaveFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dataStr := r.PostFormValue("data")
-	if !isStringValid(token) {
+	dataStr = strings.Replace(dataStr, " ", "+", -1)
+	if !isStringValid(dataStr) {
 		msg = "data invalid:" + dataStr
 		log.Println("[error]", msg)
 		return
