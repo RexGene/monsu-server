@@ -1094,7 +1094,6 @@ func handleUploadSaveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	println(body)
 	jsonInfo := new(JsonInfo)
 	json.Unmarshal([]byte(body), jsonInfo)
 
@@ -1105,6 +1104,7 @@ func handleUploadSaveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("[info]", "dataStr:", dataStr)
 	data, err := base64.StdEncoding.DecodeString(dataStr)
 	if err != nil {
 		msg = err.Error()
